@@ -9,8 +9,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "2.0.60"
-    CURRENT_PROJECT_VERSION: "58"
+    MARKETING_VERSION: "2.0.61"
+    CURRENT_PROJECT_VERSION: "59"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -38,8 +38,8 @@ targets:
       path: ChuangpuAI/Info.plist
       properties:
         CFBundleDisplayName: "创普AI"
-        CFBundleShortVersionString: "2.0.60"
-        CFBundleVersion: "58"
+        CFBundleShortVersionString: "2.0.61"
+        CFBundleVersion: "59"
         UILaunchScreen: {}
         NSCameraUsageDescription: "需要相机权限来拍照上传"
         NSPhotoLibraryUsageDescription: "需要相册权限来选择图片"
