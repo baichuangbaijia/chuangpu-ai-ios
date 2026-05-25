@@ -14,9 +14,9 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 topBar
                 lobsterOffice
-                Spacer(minLength: 6)
+                Spacer(minLength: 4)
                 quickSkillsArea
-                Spacer(minLength: 6)
+                Spacer(minLength: 4)
                 startYangXiaBtn
                 Spacer()
                 bottomInputBar
@@ -43,15 +43,13 @@ struct HomeView: View {
                     Image(systemName: "chevron.down").font(.system(size: 10)).foregroundColor(Constants.textSecondary)
                 }.padding(.horizontal, 10).padding(.vertical, 6).background(Constants.bgTertiary).cornerRadius(16)
             }
-        }.padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 4)
+        }.padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 2)
     }
     
     private var lobsterOffice: some View {
         LobsterOfficeView()
             .frame(height: 320)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal, 8)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Constants.primaryPurple.opacity(0.3), lineWidth: 1))
+            .padding(.horizontal, 0)
     }
     
     private func getModelName(_ id: String) -> String {
