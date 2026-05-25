@@ -30,7 +30,7 @@ jobs:
     - name: Build and Archive
       run: |
         cd $GITHUB_WORKSPACE
-        xcodebuild archive           -project ChuangpuAI.xcodeproj           -scheme ChuangpuAI           -configuration Release           -destination 'generic/platform=iOS'           -archivePath build/ChuangpuAI.xcarchive           CODE_SIGNING_ALLOWED=NO           CODE_SIGN_IDENTITY=""           2>&1 | tail -20
+        xcodebuild archive           -project ChuangpuAI.xcodeproj           -scheme ChuangpuAI           -configuration Release           -destination 'generic/platform=iOS'           -archivePath build/ChuangpuAI.xcarchive           CODE_SIGNING_ALLOWED=NO           CODE_SIGN_IDENTITY=""           2>&1 | tail -100
           
     - name: Create IPA with ad-hoc signing
       run: |

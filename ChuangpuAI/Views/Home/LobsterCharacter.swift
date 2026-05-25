@@ -43,8 +43,8 @@ class LobsterCharacter: SKNode {
     private var zzzLabel: SKLabelNode!
     
     // 状态
-    private var currentState: AgentState = .idle
-    private var currentIdleAction: IdleAction = .stand
+    var currentState: AgentState = .idle
+    var currentIdleAction: IdleAction = .stand
     private var stateTimer: Timer?
     private var blinkTimer: Timer?
     private var isEyesClosed = false
