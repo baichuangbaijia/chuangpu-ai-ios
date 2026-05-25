@@ -190,7 +190,7 @@ class LobsterOfficeScene: SKScene {
                 if lobster.currentState == "sleeping" { lobster.sitAtDesk(); lobster.isBusy = false }
             }
         case "chat":
-            let partners = lobsters.filter { $0.agentId ! = lobster.agentId && $0.currentState == "idle" && !$0.isBusy }
+            let partners = lobsters.filter { $0.agentId != lobster.agentId && $0.currentState == "idle" && !$0.isBusy }
             if let partner = partners.randomElement() {
                 partner.isBusy = true
                 lobster.walkTo(CGPoint(x:chatPos.x-12,y:chatPos.y)) { [weak lobster] in
@@ -224,7 +224,7 @@ class LobsterOfficeScene: SKScene {
             }
         }
         
-        if lobster.position ! = lobster.homePosition { lobster.walkHome { doWork() } }
+        if lobster.position != lobster.homePosition { lobster.walkHome { doWork() } }
         else { doWork() }
     }
 }
