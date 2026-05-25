@@ -9,7 +9,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "2.0.43"
+    MARKETING_VERSION: "2.0.44"
     CURRENT_PROJECT_VERSION: "42"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
@@ -38,7 +38,7 @@ targets:
       path: ChuangpuAI/Info.plist
       properties:
         CFBundleDisplayName: "创普AI"
-        CFBundleShortVersionString: "2.0.43"
+        CFBundleShortVersionString: "2.0.44"
         CFBundleVersion: "42"
         UILaunchScreen: {}
         NSCameraUsageDescription: "需要相机权限来拍照上传"

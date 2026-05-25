@@ -100,7 +100,7 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity).frame(height: 50).background(Constants.bgSecondary).cornerRadius(12)
                     }
                     
-                    Text("v2.0.43").font(.system(size: 13)).foregroundColor(Constants.textSecondary).frame(maxWidth: .infinity, alignment: .center).padding(.top, 10)
+                    Text("v2.0.44").font(.system(size: 13)).foregroundColor(Constants.textSecondary).frame(maxWidth: .infinity, alignment: .center).padding(.top, 10)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 30)
