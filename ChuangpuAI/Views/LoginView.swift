@@ -214,7 +214,7 @@ struct LoginView: View {
                 .font(.system(size: 15, weight: .medium))
                 .background(
                     Group {
-                        if mode == tabMode {
+                        if mode == targetMode {
                             LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing)
                         } else {
                             Color.clear
