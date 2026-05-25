@@ -110,7 +110,7 @@ struct MyView: View {
                     .padding(.top, 20)
                     
                     // 版本号（对照安卓tvAboutVersion）
-                    Text("v2.0.42")
+                    Text("v2.0.43")
                         .font(.system(size: 13))
                         .foregroundColor(Constants.textSecondary)
                         .padding(.top, 16)
@@ -129,7 +129,7 @@ struct MyView: View {
         .alert("关于我们", isPresented: $showAbout) {
             Button("确定") {}
         } message: {
-            Text("创普AI v2.0.42\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
+            Text("创普AI v2.0.43\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
         }
     }
     
