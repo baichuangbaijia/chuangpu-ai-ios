@@ -7,7 +7,7 @@ struct LobsterOfficeView: UIViewRepresentable {
         view.backgroundColor = UIColor(hex: "0D0D1A")
         view.ignoresSiblingOrder = true
         view.isMultipleTouchEnabled = false
-        let scene = LobsterOfficeScene(size: CGSize(width: UIScreen.main.bounds.width, height: 320))
+        let scene = LobsterOfficeScene(size: CGSize(width: UIScreen.main.bounds.width, height: 360))
         scene.scaleMode = .aspectFill
         view.presentScene(scene)
         return view

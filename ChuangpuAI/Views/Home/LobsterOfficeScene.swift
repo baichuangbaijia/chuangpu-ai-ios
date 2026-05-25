@@ -1,13 +1,19 @@
 import SpriteKit
 import Foundation
 
-/// 虚拟办公室 v8 - 一整张办公室全景图做背景，龙虾在上面走
+/// 虚拟办公室 v9 - 完整办公室背景图+龙虾限定在房间内
 class LobsterOfficeScene: SKScene {
     private var lobsters: [LobsterCharacter] = []
     private let agents: [(String, String)] = [
         ("pm", "主管"), ("file", "文件员"), ("computer", "系统员"),
         ("app", "应用员"), ("browser", "浏览器员"), ("search", "搜索员")
     ]
+    // 房间内部安全边界（比例），龙虾不能走出这个范围
+    private let safeLeft: CGFloat = 0.10
+    private let safeRight: CGFloat = 0.90
+    private let safeTop: CGFloat = 0.85
+    private let safeBottom: CGFloat = 0.12
+    
     private var coffeePos: CGPoint = .zero
     private var gymPos: CGPoint = .zero
     private var toiletPos: CGPoint = .zero
@@ -18,25 +24,28 @@ class LobsterOfficeScene: SKScene {
         let w = size.width, h = size.height
         backgroundColor = UIColor(hex: "0D0D1A")
         
-        // 放置一整张办公室全景背景图
+        // 放置完整办公室背景图
         placeOfficeBackground()
         
-        // 区域坐标（基于场景图中物品的大致位置）
-        // 咖啡机在右上区域
-        coffeePos = CGPoint(x: w * 0.85, y: h * 0.55)
-        // 跑步机在右下区域
-        gymPos = CGPoint(x: w * 0.85, y: h * 0.25)
-        // 厕所在左上区域
-        toiletPos = CGPoint(x: w * 0.12, y: h * 0.70)
-        // 聊天区在中间
-        chatPos = CGPoint(x: w * 0.50, y: h * 0.45)
+        // 各区域坐标——全部在房间内部
+        coffeePos = safePoint(CGPoint(x: w * 0.80, y: h * 0.52))
+        gymPos = safePoint(CGPoint(x: w * 0.80, y: h * 0.22))
+        toiletPos = safePoint(CGPoint(x: w * 0.16, y: h * 0.72))
+        chatPos = safePoint(CGPoint(x: w * 0.50, y: h * 0.42))
         
         buildLobsters()
         startBehaviorAI()
     }
     
+    /// 把坐标限定在房间安全区内
+    private func safePoint(_ p: CGPoint) -> CGPoint {
+        CGPoint(
+            x: max(size.width * safeLeft, min(size.width * safeRight, p.x)),
+            y: max(size.height * safeBottom, min(size.height * safeTop, p.y))
+        )
+    }
+    
     private func placeOfficeBackground() {
-        // 加载一整张办公室全景图
         if let tex = loadSprite("office_bg") {
             let bg = SKSpriteNode(texture: tex)
             bg.size = CGSize(width: size.width, height: size.height)
@@ -44,8 +53,7 @@ class LobsterOfficeScene: SKScene {
             bg.zPosition = 0
             addChild(bg)
         } else {
-            // 兜底：如果没有图片就用纯色背景
-            print("[Office] office_bg not found, using solid background")
+            print("[Office] office_bg not found")
         }
     }
     
@@ -67,22 +75,22 @@ class LobsterOfficeScene: SKScene {
 
     private func buildLobsters() {
         let w = size.width, h = size.height
-        // 后排3个工位（远处，小一点）
-        let backY: CGFloat = h * 0.58
-        let backXs: [CGFloat] = [0.25, 0.50, 0.75]
-        // 前排3个工位（近处，大一点）
-        let frontY: CGFloat = h * 0.30
-        let frontXs: [CGFloat] = [0.28, 0.50, 0.72]
+        // 后排3个工位（远处偏上，小）
+        let backY: CGFloat = h * 0.66
+        let backXs: [CGFloat] = [0.30, 0.50, 0.70]
+        // 前排3个工位（近处偏下，大）
+        let frontY: CGFloat = h * 0.32
+        let frontXs: [CGFloat] = [0.32, 0.50, 0.68]
         
         for (idx, ag) in agents.enumerated() {
             let lobster = LobsterCharacter(agentId: ag.0, name: ag.1)
-            let home: CGPoint
+            var home: CGPoint
             if idx < 3 {
-                home = CGPoint(x: w * backXs[idx], y: backY)
-                lobster.xScale = 0.6; lobster.yScale = 0.6; lobster.zPosition = 15
+                home = safePoint(CGPoint(x: w * backXs[idx], y: backY))
+                lobster.xScale = 0.5; lobster.yScale = 0.5; lobster.zPosition = 15
             } else {
-                home = CGPoint(x: w * frontXs[idx - 3], y: frontY)
-                lobster.xScale = 0.85; lobster.yScale = 0.85; lobster.zPosition = 25
+                home = safePoint(CGPoint(x: w * frontXs[idx - 3], y: frontY))
+                lobster.xScale = 0.75; lobster.yScale = 0.75; lobster.zPosition = 25
             }
             lobster.position = home
             lobster.homePosition = home
@@ -114,7 +122,7 @@ class LobsterOfficeScene: SKScene {
         let action = actions.randomElement()!
         switch action {
         case "coffee":
-            lobster.walkTo(coffeePos) { [weak self, weak lobster] in
+            lobster.walkTo(safePoint(coffeePos)) { [weak self, weak lobster] in
                 guard self != nil, let lobster = lobster else { return }
                 lobster.drinkCoffee()
                 self?.run(SKAction.wait(forDuration: Double.random(in: 5...8))) { [weak self, weak lobster] in
@@ -123,7 +131,7 @@ class LobsterOfficeScene: SKScene {
                 }
             }
         case "gym":
-            lobster.walkTo(gymPos) { [weak self, weak lobster] in
+            lobster.walkTo(safePoint(gymPos)) { [weak self, weak lobster] in
                 guard self != nil, let lobster = lobster else { return }
                 lobster.exercise()
                 self?.run(SKAction.wait(forDuration: Double.random(in: 6...10))) { [weak self, weak lobster] in
@@ -132,7 +140,7 @@ class LobsterOfficeScene: SKScene {
                 }
             }
         case "toilet":
-            lobster.goToToilet(toiletPos: toiletPos) { [weak lobster] in lobster?.isBusy = false }
+            lobster.goToToilet(toiletPos: safePoint(toiletPos)) { [weak lobster] in lobster?.isBusy = false }
         case "phone":
             lobster.scrollPhone()
             run(SKAction.wait(forDuration: Double.random(in: 5...8))) { [weak lobster] in
@@ -149,8 +157,8 @@ class LobsterOfficeScene: SKScene {
             let partners = lobsters.filter { $0.agentId != lobster.agentId && $0.currentState == "idle" && !$0.isBusy }
             if let partner = partners.randomElement() {
                 partner.isBusy = true
-                lobster.walkTo(CGPoint(x: chatPos.x - 20, y: chatPos.y)) { [weak lobster] in lobster?.chat(); lobster?.spriteNode.xScale = -1 }
-                partner.walkTo(CGPoint(x: chatPos.x + 20, y: chatPos.y)) { [weak partner] in partner?.chat() }
+                lobster.walkTo(safePoint(CGPoint(x: chatPos.x - 20, y: chatPos.y))) { [weak lobster] in lobster?.chat(); lobster?.spriteNode.xScale = -1 }
+                partner.walkTo(safePoint(CGPoint(x: chatPos.x + 20, y: chatPos.y))) { [weak partner] in partner?.chat() }
                 run(SKAction.wait(forDuration: Double.random(in: 5...9))) { [weak self] in
                     guard let self = self else { return }
                     let ch = self.lobsters.filter { $0.currentState == "chatting" }
