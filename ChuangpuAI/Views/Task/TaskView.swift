@@ -3,7 +3,7 @@ import SwiftUI
 /// 任务页面
 struct TaskView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var tasks: [Task] = []
+    @State private var tasks: [AgentTask] = []
     @State private var isLoading = false
     @State private var showAddSheet = false
     
@@ -97,7 +97,7 @@ struct TaskView: View {
         }
     }
     
-    private func taskCard(_ task: Task) -> some View {
+    private func taskCard(_ task: AgentTask) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -216,7 +216,7 @@ struct TaskView: View {
     
     private func loadTasks() {
         isLoading = true
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.getTasks()
                 await MainActor.run {

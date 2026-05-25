@@ -365,7 +365,7 @@ struct ChatView: View {
     private func checkConnection() {
         connectionStatus = .checking
         
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.getContainerStatus()
                 let status = result.data?["container_status"]?.value as? String ?? "none"
@@ -389,7 +389,7 @@ struct ChatView: View {
     private func createContainer() {
         connectionStatus = .creating
         
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.createContainer()
                 if result.code == 0 {
@@ -409,7 +409,7 @@ struct ChatView: View {
     }
     
     private func pollContainerStatus() {
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.getContainerStatus()
                 let status = result.data?["container_status"]?.value as? String ?? "none"
@@ -435,7 +435,7 @@ struct ChatView: View {
     }
     
     private func createNewConversation() {
-        Swift.Task {
+        Task {
             do {
                 if let conv = try await APIService.shared.createConversation() {
                     await MainActor.run {
@@ -449,7 +449,7 @@ struct ChatView: View {
     }
     
     private func loadHistory(sessionId: String) {
-        Swift.Task {
+        Task {
             do {
                 let history = try await APIService.shared.getHistory(sessionId: sessionId)
                 await MainActor.run {

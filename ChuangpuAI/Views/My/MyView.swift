@@ -111,12 +111,15 @@ struct MyView: View {
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        authManager.isVip ?
-                        Constants.accentOrange.opacity(0.5) :
-                        LinearGradient(colors: [Constants.accentOrange.opacity(0.3), Constants.accentPink.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        lineWidth: authManager.isVip ? 2 : 1
-                    )
+                    .stroke(Constants.accentOrange.opacity(0.5), lineWidth: authManager.isVip ? 2 : 1)
+            )
+            .overlay(
+                Group {
+                    if !authManager.isVip {
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(LinearGradient(colors: [Constants.accentOrange.opacity(0.3), Constants.accentPink.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+                    }
+                }
             )
         }
     }
@@ -269,7 +272,7 @@ struct MyView: View {
             return
         }
         
-        Swift.Task {
+        Task {
             do {
                 let convs = try await APIService.shared.getConversations()
                 let creditResult = try await APIService.shared.getCreditBalance()

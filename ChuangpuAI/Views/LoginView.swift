@@ -212,13 +212,13 @@ struct LoginView: View {
         }) {
             Text(title)
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(mode == tabMode ? .white : Constants.textSecondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 40)
-                .background(
-                    mode == tabMode ?
-                    LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing) :
-                    Color.clear
+                    Group {
+                        if mode == tabMode {
+                            LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing)
+                        } else {
+                            Color.clear
+                        }
+                    }
                 )
                 .cornerRadius(8)
         }
@@ -238,7 +238,7 @@ struct LoginView: View {
         isSending = true
         let type = mode == .register ? "register" : "login"
         
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.sendSmsCode(phone: phone, type: type)
                 await MainActor.run {
@@ -293,7 +293,7 @@ struct LoginView: View {
         isLoading = true
         errorMessage = nil
         
-        Swift.Task {
+        Task {
             do {
                 let success: Bool
                 if mode == .register {

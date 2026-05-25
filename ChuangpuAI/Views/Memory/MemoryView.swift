@@ -219,7 +219,7 @@ struct MemoryView: View {
     
     private func loadMemories() {
         isLoading = true
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.getMemories()
                 await MainActor.run {
@@ -238,7 +238,7 @@ struct MemoryView: View {
         let content = newMemoryText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
         
-        Swift.Task {
+        Task {
             do {
                 _ = try await APIService.shared.addMemory(content: content)
                 await MainActor.run {
@@ -253,7 +253,7 @@ struct MemoryView: View {
     }
     
     private func deleteMemory(_ memory: Memory) {
-        Swift.Task {
+        Task {
             do {
                 _ = try await APIService.shared.deleteMemory(id: memory.id)
                 await MainActor.run {

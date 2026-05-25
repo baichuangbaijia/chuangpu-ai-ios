@@ -188,7 +188,7 @@ struct SkillView: View {
     }
     
     private func loadCategories() {
-        Swift.Task {
+        Task {
             do {
                 let cats = try await APIService.shared.getCategories()
                 await MainActor.run {
@@ -202,7 +202,7 @@ struct SkillView: View {
     
     private func loadSkills() {
         isLoading = true
-        Swift.Task {
+        Task {
             do {
                 var params: [String: Any] = ["page": currentPage, "limit": 20]
                 if activeTab != "all" {
@@ -231,7 +231,7 @@ struct SkillView: View {
     }
     
     private func loadInstalledCount() {
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.getServerInstalled()
                 await MainActor.run {
@@ -244,7 +244,7 @@ struct SkillView: View {
     }
     
     private func loadFavorites() {
-        Swift.Task {
+        Task {
             do {
                 let result = try await APIService.shared.getMySkills()
                 await MainActor.run {

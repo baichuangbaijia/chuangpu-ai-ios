@@ -296,7 +296,7 @@ struct HomeView: View {
     
     private func loadConversations() {
         isLoading = true
-        Swift.Task {
+        Task {
             do {
                 let convs = try await APIService.shared.getConversations()
                 await MainActor.run {

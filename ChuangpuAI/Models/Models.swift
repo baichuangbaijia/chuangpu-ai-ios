@@ -138,7 +138,7 @@ struct Memory: Codable, Identifiable {
 }
 
 // MARK: - 任务
-struct Task: Codable, Identifiable {
+struct AgentTask: Codable, Identifiable {
     let id: String
     let name: String
     let prompt: String

@@ -145,7 +145,7 @@ struct MessageRow: View {
                         .resizable()
                         .scaledToFill()
                 case .failure, .empty:
-                    Color(Constants.bgTertiary)
+                    Constants.bgTertiary
                 @unknown default:
                     EmptyView()
                 }

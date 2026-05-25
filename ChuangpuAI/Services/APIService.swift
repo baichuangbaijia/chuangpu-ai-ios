@@ -160,7 +160,7 @@ class APIService {
         return try await request(url: agentBaseURL + "memory/delete/\(id)", method: "DELETE")
     }
     
-    func getTasks() async throws -> [Task] {
+    func getTasks() async throws -> [AgentTask] {
         let result: ApiResult<TaskListData> = try await request(url: agentBaseURL + "task/list")
         return result.data?.list ?? []
     }
@@ -195,7 +195,7 @@ struct MemoryListData: Codable {
 }
 
 struct TaskListData: Codable {
-    let list: [Task]?
+    let list: [AgentTask]?
 }
 
 struct MySkillsData: Codable {

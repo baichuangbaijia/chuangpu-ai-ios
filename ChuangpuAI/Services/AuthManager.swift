@@ -30,7 +30,7 @@ class AuthManager: ObservableObject {
     
     /// 加载用户信息
     func loadUserInfo() {
-        Swift.Task {
+        Task {
             do {
                 let result = try await api.getMe()
                 if result.code == 0, let user = result.data {

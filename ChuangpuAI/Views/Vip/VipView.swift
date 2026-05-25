@@ -311,7 +311,7 @@ struct VipView: View {
         isActivating = true
         errorMessage = nil
         
-        Swift.Task {
+        Task {
             do {
                 try await authManager.activateTestVip()
                 await MainActor.run {
