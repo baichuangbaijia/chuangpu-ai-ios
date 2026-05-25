@@ -1,7 +1,7 @@
 import SpriteKit
 import Foundation
 
-/// 虚拟办公室 v7 - 真实3D物品图+APP深色背景融合
+/// 虚拟办公室 v8 - 一整张办公室全景图做背景，龙虾在上面走
 class LobsterOfficeScene: SKScene {
     private var lobsters: [LobsterCharacter] = []
     private let agents: [(String, String)] = [
@@ -18,14 +18,35 @@ class LobsterOfficeScene: SKScene {
         let w = size.width, h = size.height
         backgroundColor = UIColor(hex: "0D0D1A")
         
-        coffeePos = CGPoint(x: w * 0.09, y: h * 0.35)
-        gymPos = CGPoint(x: w * 0.91, y: h * 0.30)
-        toiletPos = CGPoint(x: w * 0.09, y: h * 0.68)
-        chatPos = CGPoint(x: w * 0.50, y: h * 0.42)
+        // 放置一整张办公室全景背景图
+        placeOfficeBackground()
         
-        placeItems()
+        // 区域坐标（基于场景图中物品的大致位置）
+        // 咖啡机在右上区域
+        coffeePos = CGPoint(x: w * 0.85, y: h * 0.55)
+        // 跑步机在右下区域
+        gymPos = CGPoint(x: w * 0.85, y: h * 0.25)
+        // 厕所在左上区域
+        toiletPos = CGPoint(x: w * 0.12, y: h * 0.70)
+        // 聊天区在中间
+        chatPos = CGPoint(x: w * 0.50, y: h * 0.45)
+        
         buildLobsters()
         startBehaviorAI()
+    }
+    
+    private func placeOfficeBackground() {
+        // 加载一整张办公室全景图
+        if let tex = loadSprite("office_bg") {
+            let bg = SKSpriteNode(texture: tex)
+            bg.size = CGSize(width: size.width, height: size.height)
+            bg.position = CGPoint(x: size.width / 2, y: size.height / 2)
+            bg.zPosition = 0
+            addChild(bg)
+        } else {
+            // 兜底：如果没有图片就用纯色背景
+            print("[Office] office_bg not found, using solid background")
+        }
     }
     
     private func loadSprite(_ name: String) -> SKTexture? {
@@ -43,51 +64,14 @@ class LobsterOfficeScene: SKScene {
         }
         return nil
     }
-    
-    private func placeItem(named: String, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, z: CGFloat) {
-        guard let tex = loadSprite(named) else { return }
-        let node = SKSpriteNode(texture: tex)
-        node.size = CGSize(width: w, height: h)
-        node.position = CGPoint(x: x, y: y)
-        node.zPosition = z
-        addChild(node)
-    }
-
-    private func placeItems() {
-        let w = size.width, h = size.height
-        
-        // 窗户（顶部）
-        placeItem(named: "window_real", x: w * 0.50, y: h * 0.84, w: 160, h: 80, z: 1)
-        
-        // 后排3个工位（远，小）
-        let backY: CGFloat = h * 0.62
-        let backXs: [CGFloat] = [0.25, 0.50, 0.75]
-        for xr in backXs {
-            placeItem(named: "desk_real", x: w * xr, y: backY, w: 95, h: 70, z: 5)
-        }
-        
-        // 前排3个工位（近，大）
-        let frontY: CGFloat = h * 0.36
-        let frontXs: [CGFloat] = [0.28, 0.50, 0.72]
-        for xr in frontXs {
-            placeItem(named: "desk_real", x: w * xr, y: frontY, w: 110, h: 80, z: 5)
-        }
-        
-        // 咖啡机（左下）
-        placeItem(named: "coffee_real", x: w * 0.09, y: h * 0.35, w: 75, h: 70, z: 5)
-        
-        // 厕所（左上）
-        placeItem(named: "toilet_real", x: w * 0.09, y: h * 0.68, w: 70, h: 75, z: 5)
-        
-        // 健身角（右下）
-        placeItem(named: "gym_real", x: w * 0.91, y: h * 0.30, w: 80, h: 75, z: 5)
-    }
 
     private func buildLobsters() {
         let w = size.width, h = size.height
-        let backY: CGFloat = h * 0.54
+        // 后排3个工位（远处，小一点）
+        let backY: CGFloat = h * 0.58
         let backXs: [CGFloat] = [0.25, 0.50, 0.75]
-        let frontY: CGFloat = h * 0.28
+        // 前排3个工位（近处，大一点）
+        let frontY: CGFloat = h * 0.30
         let frontXs: [CGFloat] = [0.28, 0.50, 0.72]
         
         for (idx, ag) in agents.enumerated() {
@@ -95,10 +79,10 @@ class LobsterOfficeScene: SKScene {
             let home: CGPoint
             if idx < 3 {
                 home = CGPoint(x: w * backXs[idx], y: backY)
-                lobster.xScale = 0.7; lobster.yScale = 0.7; lobster.zPosition = 15
+                lobster.xScale = 0.6; lobster.yScale = 0.6; lobster.zPosition = 15
             } else {
                 home = CGPoint(x: w * frontXs[idx - 3], y: frontY)
-                lobster.zPosition = 25
+                lobster.xScale = 0.85; lobster.yScale = 0.85; lobster.zPosition = 25
             }
             lobster.position = home
             lobster.homePosition = home
