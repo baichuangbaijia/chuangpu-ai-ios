@@ -9,7 +9,7 @@ class LobsterCharacter: SKNode {
     
     // 纹理
     private var textures: [String: SKTexture] = [:]
-    private let spriteNode = SKSpriteNode()
+    let spriteNode = SKSpriteNode()
     
     // 名字和状态
     private var nameLabel: SKLabelNode!
@@ -95,7 +95,7 @@ class LobsterCharacter: SKNode {
         let dist = sqrt(dx*dx + (target.y-position.y)*(target.y-position.y))
         let dur = Double(dist) / Double(speed)
         
-        run(SKAction.move(to: target, duration: dur), withKey: "walkMove") { [weak self] in
+        run(SKAction.move(to: target, duration: dur)) { [weak self] in
             self?.clearAnimations()
             self?.spriteNode.xScale = 1
             completion()
@@ -171,7 +171,7 @@ class LobsterCharacter: SKNode {
         currentState = "celebrating"
         showState("celebrate")
         let jump = SKAction.sequence([SKAction.moveBy(x:0,y:6,duration:0.15), SKAction.moveBy(x:0,y:-6,duration:0.15)])
-        spriteNode.run(SKAction.repeat(jump, count: 3), withKey: "jump") { completion() }
+        spriteNode.run(SKAction.repeat(jump, count: 3)) { completion() }
     }
     
     func goToToilet(toiletPos: CGPoint, returnCompletion: @escaping () -> Void) {
@@ -185,7 +185,7 @@ class LobsterCharacter: SKNode {
                 SKAction.wait(forDuration: Double.random(in: 4...7)),
                 SKAction.fadeIn(withDuration: 0.4)
             ])
-            self.run(fade, withKey: "toiletWait") { [weak self] in
+            self.run(fade) { [weak self] in
                 guard let self = self else { return }
                 self.showState("walk")
                 self.walkHome(completion: returnCompletion)

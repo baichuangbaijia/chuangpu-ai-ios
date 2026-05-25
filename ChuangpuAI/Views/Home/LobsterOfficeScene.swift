@@ -53,23 +53,23 @@ class LobsterOfficeScene: SKScene {
         // 窗户
         let winW = w*0.45, winH = h*0.18
         let wf = SKShapeNode(rectOf:CGSize(width:winW+4,height:winH+4),cornerRadius:5)
-        wf.fillColor=UIColor(hex:"2a2a4a"); wf.strokeColor=UIColor(hex:"3a3a5a"); wf.lineWidth=2
-        wf.position=CGPoint(x:w/2,y:h*0.75); addChild(wf)
+        wf.fillColor = UIColor(hex:"2a2a4a"); wf.strokeColor = UIColor(hex:"3a3a5a"); wf.lineWidth = 2
+        wf.position = CGPoint(x:w/2,y:h*0.75); addChild(wf)
         let wb = SKShapeNode(rectOf:CGSize(width:winW,height:winH),cornerRadius:3)
-        wb.fillColor=UIColor(hex:"1e3a5f"); wb.strokeColor=.clear
-        wb.position=CGPoint(x:w/2,y:h*0.75); addChild(wb)
+        wb.fillColor = UIColor(hex:"1e3a5f"); wb.strokeColor = .clear
+        wb.position = CGPoint(x:w/2,y:h*0.75); addChild(wb)
         
         for _ in 0..<8 {
-            let s=SKShapeNode(circleOfRadius:CGFloat.random(in:0.5...1.5))
-            s.fillColor=.white; s.strokeColor=.clear; s.alpha=CGFloat.random(in:0.3...0.8)
-            s.position=CGPoint(x:w/2+CGFloat.random(in:-winW/2+5...winW/2-5), y:h*0.75+CGFloat.random(in:-winH/2+5...winH/2-5))
+            let s = SKShapeNode(circleOfRadius:CGFloat.random(in:0.5...1.5))
+            s.fillColor = .white; s.strokeColor = .clear; s.alpha = CGFloat.random(in:0.3...0.8)
+            s.position = CGPoint(x:w/2+CGFloat.random(in:-winW/2+5...winW/2-5), y:h*0.75+CGFloat.random(in:-winH/2+5...winH/2-5))
             addChild(s)
             s.run(SKAction.repeatForever(SKAction.sequence([SKAction.fadeAlpha(to:0.2,duration:Double.random(in:1...2)),SKAction.fadeAlpha(to:0.8,duration:Double.random(in:1...2))])))
         }
         
         // 月亮
-        let moon=SKShapeNode(circleOfRadius:5); moon.fillColor=UIColor(red:1,green:0.98,blue:0.8,alpha:0.5); moon.strokeColor=.clear
-        moon.position=CGPoint(x:w/2-winW/4,y:h*0.82); addChild(moon)
+        let moon = SKShapeNode(circleOfRadius:5); moon.fillColor = UIColor(red:1,green:0.98,blue:0.8,alpha:0.5); moon.strokeColor = .clear
+        moon.position = CGPoint(x:w/2-winW/4,y:h*0.82); addChild(moon)
         
         // 工位X位置
         let deskXs = [0.20, 0.35, 0.50, 0.65, 0.80, 0.92]
@@ -77,42 +77,42 @@ class LobsterOfficeScene: SKScene {
             let dx = w * xr, dy = floorY + 4
             
             // 桌子
-            let desk=SKShapeNode(rectOf:CGSize(width:38,height:5),cornerRadius:2)
-            desk.fillColor=UIColor(hex:"3a3a5a"); desk.strokeColor=UIColor(hex:"4a4a6a"); desk.lineWidth=1
-            desk.position=CGPoint(x:dx,y:dy); addChild(desk)
+            let desk = SKShapeNode(rectOf:CGSize(width:38,height:5),cornerRadius:2)
+            desk.fillColor = UIColor(hex:"3a3a5a"); desk.strokeColor = UIColor(hex:"4a4a6a"); desk.lineWidth = 1
+            desk.position = CGPoint(x:dx,y:dy); addChild(desk)
             
             // 显示器
-            let mon=SKShapeNode(rectOf:CGSize(width:16,height:11),cornerRadius:2)
-            mon.fillColor=UIColor(hex:"1a1a3a"); mon.strokeColor=UIColor(hex:"4a4a6a"); mon.lineWidth=1
-            mon.position=CGPoint(x:dx,y:dy+9); addChild(mon)
-            let scr=SKShapeNode(rectOf:CGSize(width:12,height:7),cornerRadius:1)
-            scr.fillColor=UIColor(red:0.49,green:0.23,blue:0.93,alpha:0.3); scr.strokeColor=.clear
-            scr.position=CGPoint(x:dx,y:dy+9); addChild(scr)
+            let mon = SKShapeNode(rectOf:CGSize(width:16,height:11),cornerRadius:2)
+            mon.fillColor = UIColor(hex:"1a1a3a"); mon.strokeColor = UIColor(hex:"4a4a6a"); mon.lineWidth = 1
+            mon.position = CGPoint(x:dx,y:dy+9); addChild(mon)
+            let scr = SKShapeNode(rectOf:CGSize(width:12,height:7),cornerRadius:1)
+            scr.fillColor = UIColor(red:0.49,green:0.23,blue:0.93,alpha:0.3); scr.strokeColor = .clear
+            scr.position = CGPoint(x:dx,y:dy+9); addChild(scr)
             scr.run(SKAction.repeatForever(SKAction.sequence([SKAction.fadeAlpha(to:0.15,duration:2),SKAction.fadeAlpha(to:0.5,duration:2)])))
             
             // 椅子
-            let chair=SKShapeNode(ellipseOf:CGSize(width:14,height:10))
-            chair.fillColor=UIColor(hex:"2a2a4a"); chair.strokeColor=UIColor(hex:"3a3a5a"); chair.lineWidth=1
-            chair.position=CGPoint(x:dx,y:dy-7); addChild(chair)
+            let chair = SKShapeNode(ellipseOf:CGSize(width:14,height:10))
+            chair.fillColor = UIColor(hex:"2a2a4a"); chair.strokeColor = UIColor(hex:"3a3a5a"); chair.lineWidth = 1
+            chair.position = CGPoint(x:dx,y:dy-7); addChild(chair)
         }
         
         // 咖啡机
-        let cm=SKShapeNode(rectOf:CGSize(width:18,height:20),cornerRadius:3)
-        cm.fillColor=UIColor(hex:"4a3a2a"); cm.strokeColor=UIColor(hex:"6a5a4a"); cm.lineWidth=1
-        cm.position=coffeePos; addChild(cm)
-        let cmL=SKLabelNode(text:"☕"); cmL.fontSize=10; cmL.position=CGPoint(x:coffeePos.x,y:coffeePos.y+2); addChild(cmL)
+        let cm = SKShapeNode(rectOf:CGSize(width:18,height:20),cornerRadius:3)
+        cm.fillColor = UIColor(hex:"4a3a2a"); cm.strokeColor = UIColor(hex:"6a5a4a"); cm.lineWidth = 1
+        cm.position = coffeePos; addChild(cm)
+        let cmL = SKLabelNode(text:"☕"); cmL.fontSize = 10; cmL.position = CGPoint(x:coffeePos.x,y:coffeePos.y+2); addChild(cmL)
         
         // 健身角
-        let gym=SKShapeNode(rectOf:CGSize(width:24,height:18),cornerRadius:4)
-        gym.fillColor=UIColor(hex:"2a3a2a"); gym.strokeColor=UIColor(hex:"4a6a4a"); gym.lineWidth=1
-        gym.position=gymPos; addChild(gym)
-        let gymL=SKLabelNode(text:"🏋️"); gymL.fontSize=8; gymL.position=CGPoint(x:gymPos.x,y:gymPos.y); addChild(gymL)
+        let gym = SKShapeNode(rectOf:CGSize(width:24,height:18),cornerRadius:4)
+        gym.fillColor = UIColor(hex:"2a3a2a"); gym.strokeColor = UIColor(hex:"4a6a4a"); gym.lineWidth = 1
+        gym.position = gymPos; addChild(gym)
+        let gymL = SKLabelNode(text:"🏋️"); gymL.fontSize = 8; gymL.position = CGPoint(x:gymPos.x,y:gymPos.y); addChild(gymL)
         
         // 厕所
-        let tl=SKShapeNode(rectOf:CGSize(width:14,height:24),cornerRadius:2)
-        tl.fillColor=UIColor(hex:"3a4a5a"); tl.strokeColor=UIColor(hex:"5a6a7a"); tl.lineWidth=1
-        tl.position=toiletPos; addChild(tl)
-        let tlL=SKLabelNode(text:"🚻"); tlL.fontSize=7; tlL.position=CGPoint(x:toiletPos.x,y:toiletPos.y); addChild(tlL)
+        let tl = SKShapeNode(rectOf:CGSize(width:14,height:24),cornerRadius:2)
+        tl.fillColor = UIColor(hex:"3a4a5a"); tl.strokeColor = UIColor(hex:"5a6a7a"); tl.lineWidth = 1
+        tl.position = toiletPos; addChild(tl)
+        let tlL = SKLabelNode(text:"🚻"); tlL.fontSize = 7; tlL.position = CGPoint(x:toiletPos.x,y:toiletPos.y); addChild(tlL)
     }
     
     private func buildLobsters() {
@@ -190,7 +190,7 @@ class LobsterOfficeScene: SKScene {
                 if lobster.currentState == "sleeping" { lobster.sitAtDesk(); lobster.isBusy = false }
             }
         case "chat":
-            let partners = lobsters.filter { $0.agentId != lobster.agentId && $0.currentState == "idle" && !$0.isBusy }
+            let partners = lobsters.filter { $0.agentId ! = lobster.agentId && $0.currentState == "idle" && !$0.isBusy }
             if let partner = partners.randomElement() {
                 partner.isBusy = true
                 lobster.walkTo(CGPoint(x:chatPos.x-12,y:chatPos.y)) { [weak lobster] in
@@ -224,7 +224,7 @@ class LobsterOfficeScene: SKScene {
             }
         }
         
-        if lobster.position != lobster.homePosition { lobster.walkHome { doWork() } }
+        if lobster.position ! = lobster.homePosition { lobster.walkHome { doWork() } }
         else { doWork() }
     }
 }
