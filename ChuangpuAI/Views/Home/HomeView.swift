@@ -48,7 +48,7 @@ struct HomeView: View {
     
     private var lobsterOffice: some View {
         LobsterOfficeView()
-            .frame(height: 300)
+            .frame(height: 320)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 8)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Constants.primaryPurple.opacity(0.3), lineWidth: 1))
