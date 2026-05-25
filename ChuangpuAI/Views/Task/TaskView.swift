@@ -216,7 +216,7 @@ struct TaskView: View {
     
     private func loadTasks() {
         isLoading = true
-        Task {
+        Swift.Task {
             do {
                 let result = try await APIService.shared.getTasks()
                 await MainActor.run {

@@ -103,7 +103,7 @@ struct SkillView: View {
             
             TextField("搜索技能...", text: $searchText)
                 .foregroundColor(.white)
-                .onChange(of: searchText) { _, _ in
+                .onChange(of: searchText) { _ in
                     currentPage = 1
                     loadSkills()
                 }
@@ -188,7 +188,7 @@ struct SkillView: View {
     }
     
     private func loadCategories() {
-        Task {
+        Swift.Task {
             do {
                 let cats = try await APIService.shared.getCategories()
                 await MainActor.run {
@@ -202,7 +202,7 @@ struct SkillView: View {
     
     private func loadSkills() {
         isLoading = true
-        Task {
+        Swift.Task {
             do {
                 var params: [String: Any] = ["page": currentPage, "limit": 20]
                 if activeTab != "all" {
@@ -231,7 +231,7 @@ struct SkillView: View {
     }
     
     private func loadInstalledCount() {
-        Task {
+        Swift.Task {
             do {
                 let result = try await APIService.shared.getServerInstalled()
                 await MainActor.run {
@@ -244,7 +244,7 @@ struct SkillView: View {
     }
     
     private func loadFavorites() {
-        Task {
+        Swift.Task {
             do {
                 let result = try await APIService.shared.getMySkills()
                 await MainActor.run {

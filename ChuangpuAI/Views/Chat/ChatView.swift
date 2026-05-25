@@ -110,7 +110,7 @@ struct ChatView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical: 16)
+        .padding(.vertical, 16)
     }
     
     private var statusColor: Color {
@@ -196,7 +196,7 @@ struct ChatView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
-            .onChange(of: messages.count) { _, _ in
+            .onChange(of: messages.count) { _ in
                 if let lastMessage = messages.last {
                     withAnimation {
                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
@@ -365,7 +365,7 @@ struct ChatView: View {
     private func checkConnection() {
         connectionStatus = .checking
         
-        Task {
+        Swift.Task {
             do {
                 let result = try await APIService.shared.getContainerStatus()
                 let status = result.data?["container_status"]?.value as? String ?? "none"
@@ -389,7 +389,7 @@ struct ChatView: View {
     private func createContainer() {
         connectionStatus = .creating
         
-        Task {
+        Swift.Task {
             do {
                 let result = try await APIService.shared.createContainer()
                 if result.code == 0 {
@@ -409,7 +409,7 @@ struct ChatView: View {
     }
     
     private func pollContainerStatus() {
-        Task {
+        Swift.Task {
             do {
                 let result = try await APIService.shared.getContainerStatus()
                 let status = result.data?["container_status"]?.value as? String ?? "none"
@@ -435,7 +435,7 @@ struct ChatView: View {
     }
     
     private func createNewConversation() {
-        Task {
+        Swift.Task {
             do {
                 if let conv = try await APIService.shared.createConversation() {
                     await MainActor.run {
@@ -449,7 +449,7 @@ struct ChatView: View {
     }
     
     private func loadHistory(sessionId: String) {
-        Task {
+        Swift.Task {
             do {
                 let history = try await APIService.shared.getHistory(sessionId: sessionId)
                 await MainActor.run {

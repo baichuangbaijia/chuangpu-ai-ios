@@ -269,7 +269,7 @@ struct MyView: View {
             return
         }
         
-        Task {
+        Swift.Task {
             do {
                 let convs = try await APIService.shared.getConversations()
                 let creditResult = try await APIService.shared.getCreditBalance()

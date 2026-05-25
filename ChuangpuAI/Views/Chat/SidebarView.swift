@@ -187,7 +187,7 @@ struct SidebarView: View {
     
     private func loadConversations() {
         isLoading = true
-        Task {
+        Swift.Task {
             do {
                 let convs = try await APIService.shared.getConversations()
                 await MainActor.run {
@@ -203,7 +203,7 @@ struct SidebarView: View {
     }
     
     private func deleteConversation(_ conv: Conversation) {
-        Task {
+        Swift.Task {
             do {
                 _ = try await APIService.shared.deleteConversation(sessionId: conv.sessionId)
                 await MainActor.run {

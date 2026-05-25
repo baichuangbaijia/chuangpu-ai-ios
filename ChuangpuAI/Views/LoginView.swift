@@ -238,7 +238,7 @@ struct LoginView: View {
         isSending = true
         let type = mode == .register ? "register" : "login"
         
-        Task {
+        Swift.Task {
             do {
                 let result = try await APIService.shared.sendSmsCode(phone: phone, type: type)
                 await MainActor.run {
@@ -293,7 +293,7 @@ struct LoginView: View {
         isLoading = true
         errorMessage = nil
         
-        Task {
+        Swift.Task {
             do {
                 let success: Bool
                 if mode == .register {
