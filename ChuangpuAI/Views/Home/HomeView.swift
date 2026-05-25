@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 首页 v2.0.44 - 对照安卓HomeFragment
-/// 布局：汉堡菜单 → 小龙虾图标+文字 → 模型选择器 → 快捷技能6个 → "开始养虾"按钮 → 底部输入栏
+/// 首页 v2.0.45 - 虚拟办公室版
+/// 布局：汉堡菜单 → 虚拟办公室(6龙虾) → 模型选择器 → 快捷技能6个 → "开始养虾"按钮 → 底部输入栏
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var inputText = ""
@@ -9,15 +9,13 @@ struct HomeView: View {
     @State private var showModelSelector = false
     @State private var showSidebar = false
     @State private var glowPhase: Double = 0.4
-    @State private var iconPulse = false
-    @State private var ringRotation: Double = 0
     
     var body: some View {
         ZStack {
             Constants.bgPrimary.ignoresSafeArea()
             VStack(spacing: 0) {
                 topBar
-                lobsterIconArea
+                lobsterOffice
                 modelSelectorBtn
                 quickSkillsArea
                 startYangXiaBtn
@@ -30,40 +28,47 @@ struct HomeView: View {
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
     }
     
-    // 1. 左上角汉堡菜单
+    // 1. 顶部栏
     private var topBar: some View {
         HStack {
             Button(action: { showSidebar = true }) {
                 Image(systemName: "line.3.horizontal").font(.system(size: 22, weight: .medium)).foregroundColor(.white)
             }
             Spacer()
-        }.padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 8)
-    }
-    
-    // 2. 小龙虾图标 + "小龙虾"文字
-    private var lobsterIconArea: some View {
-        ZStack {
-            let glowC = Constants.primaryPurple.opacity(iconPulse ? 0.25 : 0.1)
-            Circle().fill(RadialGradient(colors: [glowC, Color.clear], center: .center, startRadius: 20, endRadius: 100)).frame(width: 200, height: 200)
-            Circle().stroke(AngularGradient(colors: [Constants.primaryPurple.opacity(0.5), Constants.secondaryPurple.opacity(0.15), Color.clear], center: .center), lineWidth: 1.5).frame(width: 110, height: 110).rotationEffect(.degrees(ringRotation))
-            ZStack {
-                Circle().fill(LinearGradient(colors: [Constants.primaryPurple.opacity(0.3), Constants.secondaryPurple.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 100, height: 100)
-                Circle().stroke(LinearGradient(colors: [Constants.primaryPurple.opacity(0.6), Constants.secondaryPurple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5).frame(width: 100, height: 100)
-                Image(systemName: "brain.head.profile.fill").font(.system(size: 44)).foregroundStyle(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Text("创普AI团队").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+            Spacer()
+            Button(action: { showModelSelector = true }) {
+                let name = getModelName(currentModel)
+                HStack(spacing: 4) {
+                    Circle().fill(Constants.accentGreen).frame(width: 6, height: 6)
+                    Text(name).font(.system(size: 12)).foregroundColor(Constants.textSecondary)
+                    Image(systemName: "chevron.down").font(.system(size: 10)).foregroundColor(Constants.textSecondary)
+                }.padding(.horizontal, 10).padding(.vertical, 6).background(Constants.bgTertiary).cornerRadius(16)
             }
-            Text("小龙虾").font(.system(size: 14, weight: .medium)).foregroundColor(Constants.primaryPurple).padding(.top, 110)
-        }.frame(height: 200)
+        }.padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 4)
     }
     
-    // 3. 模型选择器
+    // 2. 虚拟办公室 - 6只龙虾
+    private var lobsterOffice: some View {
+        LobsterOfficeView()
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Constants.primaryPurple.opacity(0.3), lineWidth: 1)
+            )
+    }
+    
+    // 3. 模型选择器（简化显示）
     private var modelSelectorBtn: some View {
         Button(action: { showModelSelector = true }) {
             let name = getModelName(currentModel)
             HStack(spacing: 4) {
                 Circle().fill(Constants.accentGreen).frame(width: 8, height: 8)
-                Text("\u{25CF} \(name) \u{25BE}").font(.system(size: 13)).foregroundColor(.white)
+                Text("● \(name) ▾").font(.system(size: 13)).foregroundColor(.white)
             }.padding(.horizontal, 14).padding(.vertical, 8).background(Constants.bgTertiary).cornerRadius(20)
-        }.padding(.top, 4)
+        }.padding(.top, 8)
     }
     
     private func getModelName(_ id: String) -> String {
@@ -85,7 +90,7 @@ struct HomeView: View {
                 skillBtn(icon: "globe", title: "创建网站", color: Constants.secondaryPurple)
                 skillBtn(icon: "airplane", title: "旅行规划", color: Constants.accentBlue)
             }
-        }.padding(.horizontal, 20).padding(.top, 20)
+        }.padding(.horizontal, 20).padding(.top, 16)
     }
     
     private func skillBtn(icon: String, title: String, color: Color) -> some View {
@@ -100,7 +105,7 @@ struct HomeView: View {
         }
     }
     
-    // 5. "开始养虾"大按钮 - 发光脉冲
+    // 5. "开始养虾"大按钮
     private var startYangXiaBtn: some View {
         Button(action: {}) {
             HStack(spacing: 10) {
@@ -112,10 +117,10 @@ struct HomeView: View {
             .background(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing))
             .cornerRadius(27)
             .shadow(color: Constants.primaryPurple.opacity(glowPhase), radius: 16, x: 0, y: 6)
-        }.padding(.horizontal, 32).padding(.top, 20)
+        }.padding(.horizontal, 32).padding(.top, 16)
     }
     
-    // 6. 底部: 任务 + 输入框 + 发送
+    // 6. 底部输入栏
     private var bottomInputBar: some View {
         HStack(spacing: 12) {
             Button(action: {}) { Image(systemName: "calendar.badge.clock").font(.system(size: 22)).foregroundColor(Constants.primaryPurple) }
@@ -128,40 +133,6 @@ struct HomeView: View {
     
     private func startAnimations() {
         withAnimation(.easeInOut(duration: 1.25).repeatForever(autoreverses: true)) { glowPhase = 0.7 }
-        withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) { iconPulse = true }
-        withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) { ringRotation = 360 }
-    }
-}
-
-struct ModelSelectorSheet: View {
-    @Binding var currentModel: String
-    @Environment(\.dismiss) private var dismiss
-    private let models = [("deepseek-v3","DeepSeek V3",true),("kimi-2.5","Kimi 2.5",false),("glm-5","GLM-5",false),("minimax-m2.5","MiniMax M2.5",false),("doubao-2.0","豆包 2.0",false)]
-    
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Constants.bgPrimary.ignoresSafeArea()
-                VStack(spacing: 8) {
-                    ForEach(models, id: \.0) { m in modelRow(m) }
-                    Button(action: { dismiss() }) { Text("取消").font(.system(size: 16, weight: .medium)).foregroundColor(Constants.textSecondary).frame(maxWidth: .infinity).frame(height: 48).background(Constants.bgSecondary).cornerRadius(12) }.padding(.top, 8)
-                    Spacer()
-                }.padding(16)
-            }
-            .navigationTitle("选择模型").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("取消") { dismiss() }.foregroundColor(Constants.primaryPurple) } }
-        }.presentationDetents([.medium])
-    }
-    
-    private func modelRow(_ m: (String, String, Bool)) -> some View {
-        Button(action: { if m.2 { currentModel = m.0; dismiss() } }) {
-            HStack {
-                Text(m.1).font(.system(size: 16)).foregroundColor(m.2 ? .white : Constants.textSecondary)
-                if !m.2 { Text("即将上线").font(.system(size: 12)).foregroundColor(Constants.accentOrange).padding(.horizontal, 8).padding(.vertical, 2).background(Constants.accentOrange.opacity(0.2)).cornerRadius(4) }
-                Spacer()
-                if m.0 == currentModel { Text("\u{2713}").font(.system(size: 16, weight: .medium)).foregroundColor(Constants.primaryPurple) }
-            }.padding(.horizontal, 16).padding(.vertical, 16).background(m.0 == currentModel ? Constants.primaryPurple.opacity(0.15) : Constants.bgSecondary).cornerRadius(12)
-        }.disabled(!m.2).opacity(m.2 ? 1 : 0.6)
     }
 }
 
