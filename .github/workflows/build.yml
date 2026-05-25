@@ -32,23 +32,25 @@ jobs:
         cd $GITHUB_WORKSPACE
         xcodebuild archive           -project ChuangpuAI.xcodeproj           -scheme ChuangpuAI           -configuration Release           -destination 'generic/platform=iOS'           -archivePath build/ChuangpuAI.xcarchive           CODE_SIGNING_ALLOWED=NO           CODE_SIGN_IDENTITY=""           2>&1 | tail -20
           
-    - name: List Archive Contents
+    - name: Create IPA with ad-hoc signing
       run: |
         cd $GITHUB_WORKSPACE
-        find build/ChuangpuAI.xcarchive/Products/Applications/ChuangpuAI.app -type f | head -30
-        echo "---"
-        ls -la build/ChuangpuAI.xcarchive/Products/Applications/ChuangpuAI.app/
         
-    - name: Package IPA
-      run: |
-        cd $GITHUB_WORKSPACE
+        # Copy the app from archive
+        APP_PATH='build/ChuangpuAI.xcarchive/Products/Applications/ChuangpuAI.app'
+        
+        # Add ad-hoc code signature to the app
+        # This makes it a valid IPA that signing tools can re-sign
+        codesign --force --deep --sign - "$APP_PATH" 2>&1 || true
+        
+        # Create IPA
         mkdir -p Payload
-        cp -r build/ChuangpuAI.xcarchive/Products/Applications/ChuangpuAI.app Payload/
-        # Create basic code signature structure so iOS accepts the bundle
-        mkdir -p Payload/ChuangpuAI.app/_CodeSignature
-        echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict></dict></plist>' > Payload/ChuangpuAI.app/_CodeSignature/CodeResources
+        cp -r "$APP_PATH" Payload/
         zip -r ChuangpuAI.ipa Payload/
         rm -rf Payload
+        
+        # Show IPA contents
+        unzip -l ChuangpuAI.ipa
         ls -la ChuangpuAI.ipa
         
     - name: Upload IPA
