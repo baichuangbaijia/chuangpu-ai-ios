@@ -1,0 +1,58 @@
+name: ChuangpuAI
+options:
+  bundleIdPrefix: com.chuangpu.ai
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "2.0.42"
+    CURRENT_PROJECT_VERSION: "42"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    INFOPLIST_KEY_NSCameraUsageDescription: "需要相机权限来拍照上传"
+    INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "需要相册权限来选择图片"
+    INFOPLIST_KEY_NSMicrophoneUsageDescription: "需要麦克风权限来录制音频"
+
+targets:
+  ChuangpuAI:
+    type: application
+    platform: iOS
+    sources:
+      - ChuangpuAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chuangpu.ai.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "创普AI"
+    info:
+      path: ChuangpuAI/Info.plist
+      properties:
+        CFBundleDisplayName: "创普AI"
+        CFBundleShortVersionString: "2.0.42"
+        CFBundleVersion: "42"
+        UILaunchScreen: {}
+        NSCameraUsageDescription: "需要相机权限来拍照上传"
+        NSPhotoLibraryUsageDescription: "需要相册权限来选择图片"
+        NSMicrophoneUsageDescription: "需要麦克风权限来录制音频"
+        UIBackgroundModes: []
+        ITSAppUsesNonExemptEncryption: false
+
+schemes:
+  ChuangpuAI:
+    build:
+      targets:
+        ChuangpuAI: all
+    run:
+      config: Debug
+    archive:
+      config: Release

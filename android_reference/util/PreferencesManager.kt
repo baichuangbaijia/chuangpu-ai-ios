@@ -1,0 +1,119 @@
+package com.chuangpu.ai.util
+
+import android.content.Context
+import android.content.SharedPreferences
+
+class PreferencesManager private constructor(context: Context) {
+    
+    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    
+    companion object {
+        private const val PREFS_NAME = "chuangpu_prefs"
+        private const val KEY_TOKEN = "token"
+        private const val KEY_USER_ID = "user_id"
+        private const val KEY_USER_NAME = "user_name"
+        private const val KEY_USER_NICKNAME = "user_nickname"
+        private const val KEY_THEME = "theme"
+        private const val KEY_NOTIFICATION = "notification"
+        private const val KEY_CURRENT_MODEL = "current_model"
+        private const val KEY_IS_VIP = "is_vip"
+        
+        @Volatile
+        private var instance: PreferencesManager? = null
+        
+        fun getInstance(context: Context): PreferencesManager {
+            return instance ?: synchronized(this) {
+                instance ?: PreferencesManager(context.applicationContext).also { instance = it }
+            }
+        }
+    }
+    
+    fun saveToken(token: String) {
+        prefs.edit().putString(KEY_TOKEN, token).apply()
+    }
+    
+    fun getToken(): String? {
+        return prefs.getString(KEY_TOKEN, null)
+    }
+    
+    fun clearToken() {
+        prefs.edit().remove(KEY_TOKEN).apply()
+    }
+    
+    fun saveUserInfo(id: Long, name: String, nickname: String?) {
+        prefs.edit()
+            .putLong(KEY_USER_ID, id)
+            .putString(KEY_USER_NAME, name)
+            .putString(KEY_USER_NICKNAME, nickname)
+            .apply()
+    }
+    
+    fun getUserId(): Long = prefs.getLong(KEY_USER_ID, 0)
+    fun getUserName(): String = prefs.getString(KEY_USER_NAME, "") ?: ""
+    fun getUserNickname(): String? = prefs.getString(KEY_USER_NICKNAME, null)
+    
+    fun clearUserInfo() {
+        prefs.edit()
+            .remove(KEY_USER_ID)
+            .remove(KEY_USER_NAME)
+            .remove(KEY_USER_NICKNAME)
+            .apply()
+    }
+    
+    fun setTheme(theme: String) {
+        prefs.edit().putString(KEY_THEME, theme).apply()
+    }
+    
+    fun getTheme(): String = prefs.getString(KEY_THEME, "default") ?: "default"
+    
+    fun setNotification(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIFICATION, enabled).apply()
+    }
+    
+    fun isNotificationEnabled(): Boolean = prefs.getBoolean(KEY_NOTIFICATION, true)
+    
+    fun setCurrentModel(model: String) {
+        prefs.edit().putString(KEY_CURRENT_MODEL, model).apply()
+    }
+    
+    fun getCurrentModel(): String = prefs.getString(KEY_CURRENT_MODEL, "deepseek-v3") ?: "deepseek-v3"
+    
+    fun isLoggedIn(): Boolean = !getToken().isNullOrEmpty()
+    
+    fun setIsVip(isVip: Boolean) {
+        prefs.edit().putBoolean(KEY_IS_VIP, isVip).apply()
+    }
+    
+    fun isVip(): Boolean = prefs.getBoolean(KEY_IS_VIP, false)
+    
+    fun saveSessionId(sessionId: String) {
+        prefs.edit().putString("openclaw_session_id", sessionId).apply()
+    }
+    
+    fun getSessionId(): String? {
+        return prefs.getString("openclaw_session_id", null)
+    }
+    
+    fun saveAutoSendMsg(msg: String) {
+        prefs.edit().putString("auto_send_msg", msg).apply()
+    }
+    
+    fun getAutoSendMsg(): String? {
+        return prefs.getString("auto_send_msg", null)
+    }
+    
+    fun clearAutoSendMsg() {
+        prefs.edit().remove("auto_send_msg").apply()
+    }
+    
+    fun logout() {
+        clearToken()
+        clearUserInfo()
+    }
+
+    fun setAppIconUrl(url: String) = prefs.edit().putString("app_icon_url", url).apply()
+    fun getAppIconUrl(): String? = prefs.getString("app_icon_url", null)
+    fun setAppConfig(config: String) = prefs.edit().putString("app_config_json", config).apply()
+    fun getAppConfig(): String? = prefs.getString("app_config_json", null)
+
+}

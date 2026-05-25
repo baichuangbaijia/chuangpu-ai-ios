@@ -1,0 +1,1038 @@
+package com.chuangpu.ai.ui.chat
+
+import android.content.Intent
+import android.net.Uri
+import android.widget.ImageView
+import android.os.Bundle
+import android.provider.OpenableColumns
+import android.os.Handler
+import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.chuangpu.ai.R
+import com.chuangpu.ai.databinding.ActivityChatBinding
+import com.chuangpu.ai.model.Message
+import com.chuangpu.ai.network.ApiService
+import com.chuangpu.ai.ui.main.MainActivity
+import com.chuangpu.ai.ui.sidebar.SidebarDrawer
+import com.chuangpu.ai.util.PreferencesManager
+import com.chuangpu.ai.database.ChatDatabase
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import io.noties.markwon.Markwon
+import com.bumptech.glide.Glide
+import io.noties.markwon.html.HtmlPlugin
+import io.noties.markwon.linkify.LinkifyPlugin
+import io.noties.markwon.image.ImagesPlugin
+import io.noties.markwon.image.glide.GlideImagesPlugin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import okhttp3.Call
+
+class ChatActivity : AppCompatActivity() {
+
+    companion object {
+        private const val REQUEST_CAMERA = 1001
+        private const val REQUEST_ALBUM = 1002
+        private const val REQUEST_FILE = 1003
+        private const val REQUEST_VIDEO = 1004
+    }
+
+    private lateinit var binding: ActivityChatBinding
+    private lateinit var apiService: ApiService
+    private lateinit var prefs: PreferencesManager
+    private lateinit var chatDb: ChatDatabase
+    private lateinit var adapter: MessageAdapter
+    private lateinit var markwon: Markwon
+
+    private var sessionId: String? = null
+    private var isGenerating = false
+    private var currentModel = "deepseek-v3"
+    private val messages = mutableListOf<Message>()
+    private val messageQueue = mutableListOf<String>()
+    private var currentCall: Call? = null
+    private var sseTimeoutHandler: Handler? = null
+    private var sseTimeoutRunnable: Runnable? = null
+
+    enum class UploadState { IDLE, UPLOADING, SUCCESS, FAILED }
+    data class PendingAttachment(
+        val cachedFile: java.io.File, val fileName: String, val mimeType: String,
+        val isImage: Boolean, val isVideo: Boolean, val uri: Uri,
+        var uploadState: UploadState = UploadState.IDLE,
+        var uploadProgress: Int = 0,  // 0-100
+        var uploadedUrl: String? = null  // 上传成功后的服务器URL
+    )
+    private val pendingAttachments = mutableListOf<PendingAttachment>()
+
+    private val thinkingTexts = arrayOf("小虾正在思考中...", "正在调用技能...", "正在为你创建...", "马上就好...")
+    private var thinkingIndex = 0
+    private var thinkingTimer: Handler? = null
+    private var thinkingRunnable: Runnable? = null
+
+    private val availableModels = listOf(
+        ModelItem("deepseek-v3", "DeepSeek V3", true),
+        ModelItem("kimi-2.5", "Kimi 2.5", false),
+        ModelItem("glm-5", "GLM-5", false),
+        ModelItem("minimax-m2.5", "MiniMax M2.5", false),
+        ModelItem("doubao-2.0", "豆包 2.0", false)
+    )
+
+    data class ModelItem(val id: String, val name: String, val available: Boolean)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityChatBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        apiService = ApiService(this)
+        prefs = PreferencesManager.getInstance(this)
+        chatDb = ChatDatabase(this)
+        currentModel = prefs.getCurrentModel()
+        markwon = Markwon.builder(this)
+            .usePlugin(HtmlPlugin.create())
+            .usePlugin(LinkifyPlugin.create())
+            .usePlugin(GlideImagesPlugin.create(this))
+            .build()
+
+        // 恢复上次sessionId
+        val savedSessionId = prefs.getSessionId()
+        if (!savedSessionId.isNullOrEmpty()) {
+            sessionId = savedSessionId
+        }
+
+        // 确保状态干净：每次打开重置
+        isGenerating = false
+        messageQueue.clear()
+        setupUI()
+        handleIntent()
+    }
+
+    private fun setupUI() {
+        binding.btnMenu.setOnClickListener { toggleSidebar() }
+        binding.btnNew.setOnClickListener { createNewChat() }
+        binding.btnHome.setOnClickListener { goHome() }
+
+        adapter = MessageAdapter(messages, markwon)
+        binding.rvMessages.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+        binding.rvMessages.adapter = adapter
+
+        binding.etInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEND) { sendMessage(); true } else false
+        }
+        binding.etInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                binding.btnSend.isEnabled = !s.isNullOrBlank() || pendingAttachments.isNotEmpty()
+            }
+        })
+
+        binding.btnAttach.setOnClickListener { openFilePicker() }
+        binding.optionCamera.setOnClickListener { attachPanelVisible = false; binding.attachPanel.visibility = View.GONE; openCamera() }
+        binding.optionAlbum.setOnClickListener { attachPanelVisible = false; binding.attachPanel.visibility = View.GONE; openAlbum() }
+        binding.optionFile.setOnClickListener { attachPanelVisible = false; binding.attachPanel.visibility = View.GONE; openDocPicker() }
+        binding.optionVideo.setOnClickListener { attachPanelVisible = false; binding.attachPanel.visibility = View.GONE; openVideoPicker() }
+        binding.btnSend.setOnClickListener { sendMessage() }
+        binding.btnStop.setOnClickListener { stopGenerate() }
+
+        binding.quickTask.setOnClickListener { quickAction("帮我创建一个任务") }
+        binding.quickWebsite.setOnClickListener { quickAction("帮我搭建一个网页") }
+        binding.quickResearch.setOnClickListener { quickAction("帮我做一份市场调研") }
+
+        binding.btnModelSelect.setOnClickListener { showModelSelector() }
+        updateEmptyState()
+    }
+
+    private fun handleIntent() {
+        if (intent.getBooleanExtra("new", false)) {
+            sessionId = null
+            messages.clear()
+            adapter.notifyDataSetChanged()
+            updateEmptyState()
+        }
+        val querySessionId = intent.getStringExtra("session_id")
+        if (!querySessionId.isNullOrEmpty()) {
+            sessionId = querySessionId
+            loadChatHistoryFromBridge()
+        } else if (!sessionId.isNullOrEmpty()) {
+            loadChatHistoryFromBridge()
+        }
+        val autoMsg = intent.getStringExtra("msg")
+        val shouldSend = intent.getBooleanExtra("send", false)
+        if (!autoMsg.isNullOrEmpty()) {
+            binding.etInput.setText(autoMsg)
+            if (shouldSend) binding.etInput.postDelayed({ sendMessage() }, 300)
+        }
+        val storedAutoMsg = prefs.getAutoSendMsg()
+        if (!storedAutoMsg.isNullOrEmpty()) {
+            prefs.clearAutoSendMsg()
+            binding.etInput.setText(storedAutoMsg)
+            binding.etInput.postDelayed({ sendMessage() }, 500)
+        }
+    }
+
+    private fun toggleSidebar() {
+        val sidebar = SidebarDrawer(this, sessionId) { conversation ->
+            sessionId = conversation.session_id
+            prefs.saveSessionId(conversation.session_id)
+            messages.clear()
+            adapter.notifyDataSetChanged()
+            updateEmptyState()
+            loadChatHistoryFromBridge()
+        }
+        sidebar.show()
+    }
+
+    private fun createNewChat() {
+        lifecycleScope.launch {
+            try {
+                val result = apiService.createConversation()
+                val newSessionId = result?.data?.session_id
+                if (!newSessionId.isNullOrEmpty()) {
+                    sessionId = newSessionId
+                    prefs.saveSessionId(newSessionId)
+                }
+            } catch (_: Exception) { }
+            messages.clear()
+            adapter.notifyDataSetChanged()
+            updateEmptyState()
+        }
+    }
+
+    private fun goHome() {
+        startActivity(Intent(this, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_CLEAR_TOP })
+        finish()
+    }
+
+    private fun quickAction(text: String) {
+        binding.etInput.setText(text)
+        sendMessage()
+    }
+
+    private fun sendMessage() {
+        val text = binding.etInput.text.toString().trim()
+        if (text.isEmpty() && pendingAttachments.isEmpty()) return
+        if (isGenerating && currentCall == null) {
+            isGenerating = false
+            stopThinkingAnimation()
+            cancelSseTimeout()
+        }
+        if (isGenerating) return
+        binding.etInput.text?.clear()
+
+        val hasAttachments = pendingAttachments.isNotEmpty()
+        val attachments = mutableListOf<PendingAttachment>()
+        if (hasAttachments) {
+            attachments.addAll(pendingAttachments)
+            pendingAttachments.clear()
+            binding.attachmentPreview.visibility = View.GONE
+        }
+
+        val imageAttachments = attachments.filter { it.isImage }
+        val videoAttachments = attachments.filter { it.isVideo }
+        val fileAttachments = attachments.filter { !it.isImage && !it.isVideo }
+
+        if (hasAttachments) {
+            lifecycleScope.launch {
+                try {
+                    // 图片先用本地URI显示，不依赖网络
+                    val imageLocalUris = mutableListOf<String>()
+                    for (imgAtt in imageAttachments) {
+                        imageLocalUris.add(imgAtt.uri.toString())
+                    }
+
+                    // 图片单独一个气泡显示（用本地URI，立即可见）
+                    if (imageLocalUris.isNotEmpty()) {
+                        val localUri = imageLocalUris.first()
+                        messages.add(Message(role = "user", content = "图片", text = "图片", imageUrl = localUri))
+                        sessionId?.let { chatDb.saveMessage(it, "user", "[图片]") }
+                        adapter.notifyItemInserted(messages.size - 1)
+                        scrollToBottom()
+                    }
+
+                    // v5.3: 使用已上传的URL（选附件时已自动上传）
+                    // 等待还在上传中的附件完成（最多等30秒）
+                    var waitCount = 0
+                    while (attachments.any { it.uploadState == UploadState.UPLOADING } && waitCount < 60) {
+                        delay(500)
+                        waitCount++
+                    }
+
+                    // 图片：用已上传的URL
+                    val uploadedImageUrls = mutableListOf<String>()
+                    for (imgAtt in imageAttachments) {
+                        if (imgAtt.uploadedUrl != null) {
+                            uploadedImageUrls.add(imgAtt.uploadedUrl!!)
+                        } else if (imgAtt.uploadState == UploadState.FAILED) {
+                            val url = doUploadFile(imgAtt.cachedFile, imgAtt.mimeType)
+                            if (url != null) uploadedImageUrls.add(url)
+                        }
+                        imgAtt.cachedFile.delete()
+                    }
+                    if (uploadedImageUrls.isNotEmpty()) {
+                        messageQueue.add("__IMAGE__::__" + uploadedImageUrls.first())
+                    } else if (imageLocalUris.isNotEmpty()) {
+                        messageQueue.add("请描述这张图片")
+                    }
+
+                    // 文件
+                    var messageText = text
+                    val fileParts = mutableListOf<String>()
+                    for (fileAtt in fileAttachments) {
+                        if (fileAtt.uploadedUrl != null) {
+                            fileParts.add("[文件:${fileAtt.fileName}](${fileAtt.uploadedUrl!!})")
+                        } else {
+                            val url = doUploadFile(fileAtt.cachedFile, fileAtt.mimeType)
+                            if (url != null) fileParts.add("[文件:${fileAtt.fileName}]($url)")
+                        }
+                        fileAtt.cachedFile.delete()
+                    }
+
+                    // 视频：用已上传的URL
+                    if (videoAttachments.isNotEmpty()) {
+                        val localVideoUri = videoAttachments.first().uri.toString()
+                        messages.add(Message(role = "user", content = "视频", text = "视频", videoUrl = localVideoUri))
+                        sessionId?.let { chatDb.saveMessage(it, "user", "[视频]") }
+                        adapter.notifyItemInserted(messages.size - 1)
+                        scrollToBottom()
+                    }
+                    val uploadedVideoUrls = mutableListOf<String>()
+                    for (vidAtt in videoAttachments) {
+                        if (vidAtt.uploadedUrl != null) {
+                            uploadedVideoUrls.add(vidAtt.uploadedUrl!!)
+                        } else if (vidAtt.uploadState == UploadState.FAILED) {
+                            val url = doUploadVideo(vidAtt.cachedFile, vidAtt.mimeType)
+                            if (url != null) uploadedVideoUrls.add(url)
+                        }
+                        vidAtt.cachedFile.delete()
+                    }
+                    if (uploadedVideoUrls.isNotEmpty()) {
+                        messageQueue.add("__VIDEO__::__" + uploadedVideoUrls.joinToString("||"))
+                    } else if (videoAttachments.isNotEmpty()) {
+                        runOnUiThread { android.widget.Toast.makeText(this@ChatActivity, "视频上传失败，请重新发送", android.widget.Toast.LENGTH_LONG).show() }
+                    }
+                    if (fileParts.isNotEmpty()) {
+                        val filePart = fileParts.joinToString("\n")
+                        messageText = if (messageText.isNotEmpty()) "$messageText\n$filePart" else filePart
+                    }
+                    // 文字+文件单独一个气泡
+                    if (messageText.isNotEmpty()) {
+                        messages.add(Message(role = "user", content = messageText, text = messageText))
+                        sessionId?.let { chatDb.saveMessage(it, "user", messageText) }
+                        adapter.notifyItemInserted(messages.size - 1)
+                        messageQueue.add(messageText)
+                    }
+
+                    scrollToBottom()
+                    updateEmptyState()
+                    processQueue()
+                } catch (e: Exception) {
+                    for (att in attachments) { att.cachedFile.delete() }
+                    messageQueue.add(if (text.isNotEmpty()) text else " ")
+                    processQueue()
+                }
+            }
+        } else {
+            // 纯文字消息
+            messages.add(Message(role = "user", content = text, text = text))
+            sessionId?.let { chatDb.saveMessage(it, "user", text) }
+            adapter.notifyItemInserted(messages.size - 1)
+            scrollToBottom()
+            updateEmptyState()
+            messageQueue.add(text)
+            processQueue()
+        }
+    }
+
+    private fun processQueue() {
+        if (messageQueue.isEmpty()) {
+            isGenerating = false
+            stopThinkingAnimation()
+            currentCall = null
+            cancelSseTimeout()
+            return
+        }
+        val text = messageQueue.removeAt(0)
+        isGenerating = true
+        startThinkingAnimation()
+
+        if (sessionId.isNullOrEmpty()) {
+            lifecycleScope.launch {
+                try {
+                    android.widget.Toast.makeText(this@ChatActivity, "正在创建会话...", android.widget.Toast.LENGTH_SHORT).show()
+                    val result = apiService.createConversation()
+                    android.util.Log.d("ChatActivity", "createConversation result=$result")
+                    val newSessionId = result?.data?.session_id
+                    android.util.Log.d("ChatActivity", "newSessionId=$newSessionId result.data=${result?.data}")
+                    if (!newSessionId.isNullOrEmpty()) {
+                        sessionId = newSessionId
+                        prefs.saveSessionId(newSessionId)
+                        android.widget.Toast.makeText(this@ChatActivity, "会话创建成功: ${newSessionId.take(8)}...", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(this@ChatActivity, "创建会话失败: result=$result data=${result?.data} sid=$newSessionId", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(this@ChatActivity, "创建会话异常: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                    android.util.Log.e("ChatActivity", "createConversation error", e)
+                }
+                if (sessionId.isNullOrEmpty()) {
+                    val lastMsg = messages.lastOrNull()
+                    if (lastMsg != null && lastMsg.role == "assistant" && lastMsg.content.isEmpty()) {
+                        lastMsg.content = "网络异常，请重试"
+                        adapter.notifyItemChanged(messages.size - 1)
+                    }
+                    finishGenerate()
+                    return@launch
+                }
+                android.widget.Toast.makeText(this@ChatActivity, "发送消息中...", android.widget.Toast.LENGTH_SHORT).show()
+                doSendSse(text)
+            }
+        } else {
+            doSendSse(text)
+        }
+    }
+
+    private fun doSendSse(text: String) {
+        val sid = sessionId ?: run { finishGenerate(); processQueue(); return }
+        messages.add(Message(role = "assistant", content = ""))
+        adapter.notifyItemInserted(messages.size - 1)
+        scrollToBottom()
+
+        // 超时保底：120秒后如果SSE还没结束，强制结束
+        startSseTimeout()
+
+        // 识别图片和视频消息
+        var msgText = text
+        var images = emptyList<String>()
+        var videos = emptyList<String>()
+        if (text.startsWith("__IMAGE__::__")) {
+            val imgUrl = text.substringAfter("__IMAGE__::__")
+            images = listOf(imgUrl)
+            msgText = "请看这张图片并描述你看到的内容"
+        } else if (text.startsWith("__VIDEO__::__")) {
+            val vidUrls = text.substringAfter("__VIDEO__::__").split("||")
+            videos = vidUrls
+            msgText = "请看这个视频并描述你看到的内容"
+        }
+
+        currentCall = apiService.sendMessageSse(
+            sessionId = sid,
+            message = msgText,
+            model = currentModel,
+            images = images,
+            videos = videos,
+            onChunk = { type: String, chunk: String ->
+                // 每收到chunk就重置超时
+                resetSseTimeout()
+                runOnUiThread {
+                    val lastMsg = messages.lastOrNull()
+                    if (lastMsg != null && lastMsg.role == "assistant") {
+                        if (type == "replace_all") {
+                            // Bridge检测到新文件时发送完整内容，替换而非追加
+                            lastMsg.content = chunk
+                        } else if (type == "status") {
+                            // 状态提示不追加到消息内容
+                        } else {
+                            lastMsg.content += chunk
+                        }
+                        adapter.notifyItemChanged(messages.size - 1)
+                        scrollToBottom()
+                    }
+                }
+            },
+            onComplete = {
+                runOnUiThread {
+                    cancelSseTimeout()
+                    val lastMsg = messages.lastOrNull()
+                    if (lastMsg != null && lastMsg.role == "assistant") {
+                        if (lastMsg.content.isEmpty()) {
+                            messages.removeAt(messages.size - 1)
+                            adapter.notifyItemRemoved(messages.size)
+                        } else {
+                            sessionId?.let { s -> chatDb.saveMessage(s, "assistant", lastMsg.content) }
+                        }
+                    }
+                    finishGenerate()
+                    processQueue()
+                }
+            },
+            onError = { err: String ->
+                runOnUiThread {
+                    cancelSseTimeout()
+                    val lastMsg = messages.lastOrNull()
+                    if (lastMsg != null && lastMsg.role == "assistant" && lastMsg.content.isEmpty()) {
+                        lastMsg.content = err
+                        adapter.notifyItemChanged(messages.size - 1)
+                    }
+                    finishGenerate()
+                    processQueue()
+                }
+            }
+        )
+    }
+
+    private fun startSseTimeout() {
+        cancelSseTimeout()
+        sseTimeoutHandler = Handler(Looper.getMainLooper())
+        sseTimeoutRunnable = Runnable {
+            // 超时强制结束
+            currentCall?.cancel()
+            currentCall = null
+            val lastMsg = messages.lastOrNull()
+            if (lastMsg != null && lastMsg.role == "assistant" && lastMsg.content.isEmpty()) {
+                lastMsg.content = "响应超时，请重试"
+                adapter.notifyItemChanged(messages.size - 1)
+            }
+            finishGenerate()
+            processQueue()
+        }
+        sseTimeoutHandler?.postDelayed(sseTimeoutRunnable!!, 120000)
+    }
+
+    private fun resetSseTimeout() {
+        sseTimeoutHandler?.removeCallbacks(sseTimeoutRunnable!!)
+        sseTimeoutHandler?.postDelayed(sseTimeoutRunnable!!, 120000)
+    }
+
+    private fun cancelSseTimeout() {
+        sseTimeoutRunnable?.let { sseTimeoutHandler?.removeCallbacks(it) }
+        sseTimeoutRunnable = null
+        sseTimeoutHandler = null
+    }
+
+    private fun stopGenerate() {
+        currentCall?.cancel()
+        currentCall = null
+        isGenerating = false
+        messageQueue.clear()
+        stopThinkingAnimation()
+        finishGenerate()
+    }
+
+    private fun finishGenerate() {
+        isGenerating = false
+        binding.statusBar.visibility = View.GONE
+        binding.btnStop.visibility = View.GONE
+        binding.btnSend.visibility = View.VISIBLE
+    }
+
+    private fun startThinkingAnimation() {
+        binding.statusBar.visibility = View.VISIBLE
+        binding.btnStop.visibility = View.VISIBLE
+        binding.btnSend.visibility = View.GONE
+        thinkingIndex = 0
+        binding.tvStatus.text = thinkingTexts[0]
+        thinkingTimer = Handler(Looper.getMainLooper())
+        thinkingRunnable = object : Runnable {
+            override fun run() {
+                thinkingIndex = (thinkingIndex + 1) % thinkingTexts.size
+                binding.tvStatus.text = thinkingTexts[thinkingIndex]
+                thinkingTimer?.postDelayed(this, 2000)
+            }
+        }
+        thinkingTimer?.postDelayed(thinkingRunnable!!, 2000)
+    }
+
+    private fun stopThinkingAnimation() {
+        thinkingRunnable?.let { thinkingTimer?.removeCallbacks(it) }
+        thinkingRunnable = null
+        thinkingTimer = null
+    }
+
+    private fun loadChatHistoryFromBridge() {
+        val sid = sessionId ?: return
+        lifecycleScope.launch {
+            try {
+                val historyMsgs = apiService.getChatHistory(sid) ?: emptyList()
+                if (historyMsgs.isNotEmpty()) {
+                    messages.clear()
+                    for (m in historyMsgs) {
+                        messages.add(Message(role = m.role ?: "user", content = m.content ?: ""))
+                    }
+                    adapter.notifyDataSetChanged()
+                    updateEmptyState()
+                    scrollToBottom()
+                }
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun showModelSelector() {
+        binding.etInput.clearFocus()
+        val dialog = BottomSheetDialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_model_selector, null)
+        dialog.setContentView(view)
+        val modelList = view.findViewById<LinearLayout>(R.id.modelListContainer)
+        modelList.removeAllViews()
+        for (model in availableModels) {
+            val itemView = LayoutInflater.from(this).inflate(R.layout.item_model, modelList, false)
+            val tvName = itemView.findViewById<TextView>(R.id.tvModelName)
+            val tvBadge = itemView.findViewById<TextView>(R.id.tvModelBadge)
+            val tvCheck = itemView.findViewById<TextView>(R.id.tvModelCheck)
+            tvName.text = model.name
+            tvBadge.visibility = if (model.available) View.GONE else View.VISIBLE
+            if (!model.available) tvBadge.text = "即将上线"
+            if (model.id == currentModel) {
+                itemView.setBackgroundResource(R.drawable.bg_model_active)
+                tvCheck.visibility = View.VISIBLE
+                tvCheck.text = "✓"
+            } else {
+                tvCheck.visibility = View.GONE
+            }
+            itemView.setOnClickListener {
+                if (!model.available) {
+                    return@setOnClickListener
+                }
+                currentModel = model.id
+                prefs.setCurrentModel(model.id)
+                dialog.dismiss()
+            }
+            modelList.addView(itemView)
+        }
+        view.findViewById<TextView>(R.id.tvCancel)?.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun scrollToBottom() {
+        binding.rvMessages.post {
+            if (adapter.itemCount > 0) binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
+        }
+    }
+
+    private fun updateEmptyState() {
+        if (messages.isEmpty()) {
+            binding.emptyState.visibility = View.VISIBLE
+            binding.rvMessages.visibility = View.GONE
+        } else {
+            binding.emptyState.visibility = View.GONE
+            binding.rvMessages.visibility = View.VISIBLE
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        thinkingRunnable?.let { thinkingTimer?.removeCallbacks(it) }
+        currentCall?.cancel()
+    }
+
+    override fun onBackPressed() = goHome()
+
+    private var attachPanelVisible = false
+
+    private fun openFilePicker() {
+        attachPanelVisible = !attachPanelVisible
+        binding.attachPanel.visibility = if (attachPanelVisible) View.VISIBLE else View.GONE
+    }
+
+    private fun openCamera() {
+        val intent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivityForResult(intent, REQUEST_CAMERA)
+        }
+    }
+
+    private fun openAlbum() {
+        val intent = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+            type = "image/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+        }
+        startActivityForResult(intent, REQUEST_ALBUM)
+    }
+
+    private fun openDocPicker() {
+        startActivityForResult(Intent(this, FilePickerActivity::class.java), REQUEST_FILE)
+    }
+
+    private fun openVideoPicker() {
+        val intent = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI).apply {
+            type = "video/*"
+        }
+        startActivityForResult(intent, REQUEST_VIDEO)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK) return
+        when (requestCode) {
+            REQUEST_CAMERA -> {
+                data?.data?.let { addPendingAttachment(it) }
+                    ?: data?.extras?.get("data")?.let { bitmap ->
+                        val tempFile = java.io.File(cacheDir, "camera_" + System.currentTimeMillis() + ".jpg")
+                        java.io.FileOutputStream(tempFile).use { fos ->
+                            (bitmap as android.graphics.Bitmap).compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, fos)
+                        }
+                        addPendingAttachment(android.net.Uri.fromFile(tempFile))
+                    }
+            }
+            REQUEST_ALBUM -> {
+                data?.let { d ->
+                    val clip = d.clipData
+                    if (clip != null) {
+                        for (i in 0 until clip.itemCount) {
+                            addPendingAttachment(clip.getItemAt(i).uri)
+                        }
+                    } else {
+                        d.data?.let { addPendingAttachment(it) }
+                    }
+                }
+            }
+            REQUEST_FILE -> {
+                data?.getStringArrayExtra(FilePickerActivity.EXTRA_SELECTED_URIS)?.forEach {
+                    addPendingAttachment(Uri.parse(it))
+                }
+            }
+            REQUEST_VIDEO -> {
+                data?.data?.let { addPendingAttachment(it) }
+            }
+        }
+    }
+
+    private fun addPendingAttachment(uri: Uri) {
+        val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
+        val fileName = getFileName(uri) ?: "file"
+        val isImage = mimeType.startsWith("image/")
+        val isVideo = mimeType.startsWith("video/")
+        // 直接用URI，不拷缓存
+        val att = PendingAttachment(
+            java.io.File(cacheDir, "pending_${System.currentTimeMillis()}_$fileName"),
+            fileName, mimeType, isImage, isVideo, uri
+        )
+        att.uploadState = UploadState.IDLE
+        att.uploadProgress = 0
+        pendingAttachments.add(att)
+        updateAttachmentPreview()
+        startAttachmentUpload(pendingAttachments.lastIndex)
+    }
+
+    private fun updateAttachmentPreview() {
+        if (pendingAttachments.isEmpty()) {
+            binding.attachmentPreview.visibility = View.GONE
+            return
+        }
+        binding.attachmentPreview.visibility = View.VISIBLE
+        binding.attachmentPreview.removeAllViews()
+        val container = android.widget.HorizontalScrollView(this).apply { isFillViewport = true }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(8, 8, 8, 8)
+        }
+        for ((index, att) in pendingAttachments.withIndex()) {
+            val itemWrap = android.widget.FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(120, 120).apply { marginEnd = 8 }
+            }
+            if (att.isImage) {
+                val img = ImageView(this).apply {
+                    layoutParams = android.widget.FrameLayout.LayoutParams(120, 120)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setImageURI(att.uri)
+                    setBackgroundColor(0xFF2A2A3A.toInt())
+                }
+                itemWrap.addView(img)
+            } else if (att.isVideo) {
+                // 视频缩略图：提取第一帧
+                val thumb = android.widget.ImageView(this).apply {
+                    layoutParams = android.widget.FrameLayout.LayoutParams(120, 120)
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setBackgroundColor(0xFF2A2A3A.toInt())
+                }
+                try {
+                    val retriever = android.media.MediaMetadataRetriever()
+                    retriever.setDataSource(this@ChatActivity, att.uri)
+                    val bitmap = retriever.getFrameAtTime(0)
+                    retriever.release()
+                    if (bitmap != null) {
+                        thumb.setImageBitmap(bitmap)
+                    }
+                } catch (e: Exception) { }
+                // 叠加播放图标
+                val playIcon = TextView(this).apply {
+                    text = "▶"
+                    textSize = 28f
+                    setTextColor(0xB3FFFFFF.toInt())
+                    gravity = android.view.Gravity.CENTER
+                    layoutParams = android.widget.FrameLayout.LayoutParams(120, 120)
+                }
+                itemWrap.addView(thumb)
+                itemWrap.addView(playIcon)
+            } else {
+                val tv = TextView(this).apply {
+                    layoutParams = android.widget.FrameLayout.LayoutParams(120, 120)
+                    text = att.fileName
+                    setTextColor(resources.getColor(android.R.color.white, null))
+                    textSize = 11f
+                    maxLines = 3
+                    setPadding(8, 8, 8, 8)
+                    setBackgroundColor(0xFF2A2A3A.toInt())
+                }
+                itemWrap.addView(tv)
+            }
+            // 上传状态指示器
+            val statusOverlay = android.widget.FrameLayout(this).apply {
+                layoutParams = android.widget.FrameLayout.LayoutParams(120, 120)
+            }
+            when (att.uploadState) {
+                UploadState.UPLOADING -> {
+                    val progressView = android.widget.LinearLayout(this).apply {
+                        orientation = android.widget.LinearLayout.VERTICAL
+                        gravity = android.view.Gravity.CENTER
+                        setBackgroundColor(0x99000000.toInt())
+                        layoutParams = android.widget.FrameLayout.LayoutParams(120, 120)
+                    }
+                    val progressText = TextView(this).apply {
+                        text = if (att.uploadProgress > 0) "${att.uploadProgress}%" else "上传中"
+                        setTextColor(0xFFFFFFFF.toInt())
+                        textSize = 12f
+                        gravity = android.view.Gravity.CENTER
+                    }
+                    val spinner = android.widget.ProgressBar(this).apply {
+                        isIndeterminate = att.uploadProgress == 0
+                        if (!isIndeterminate) progress = att.uploadProgress
+                        layoutParams = android.widget.LinearLayout.LayoutParams(48, 48)
+                    }
+                    progressView.addView(spinner)
+                    progressView.addView(progressText)
+                    statusOverlay.addView(progressView)
+                }
+                UploadState.SUCCESS -> {
+                    val checkMark = TextView(this).apply {
+                        text = "✓"
+                        setTextColor(0xFF4CAF50.toInt())
+                        textSize = 20f
+                        setBackgroundColor(0x80000000.toInt())
+                        gravity = android.view.Gravity.CENTER
+                        layoutParams = android.widget.FrameLayout.LayoutParams(32, 32, android.view.Gravity.END or android.view.Gravity.BOTTOM)
+                    }
+                    statusOverlay.addView(checkMark)
+                }
+                UploadState.FAILED -> {
+                    val failOverlay = android.widget.LinearLayout(this).apply {
+                        orientation = android.widget.LinearLayout.VERTICAL
+                        gravity = android.view.Gravity.CENTER
+                        setBackgroundColor(0xCC000000.toInt())
+                        layoutParams = android.widget.FrameLayout.LayoutParams(120, 120)
+                    }
+                    val failText = TextView(this).apply {
+                        text = "✗ 失败"
+                        setTextColor(0xFFFF5252.toInt())
+                        textSize = 12f
+                        gravity = android.view.Gravity.CENTER
+                    }
+                    val retryBtn = TextView(this).apply {
+                        text = "重试"
+                        setTextColor(0xFFFFFFFF.toInt())
+                        textSize = 11f
+                        setBackgroundColor(0xFF4CAF50.toInt())
+                        setPadding(12, 4, 12, 4)
+                        gravity = android.view.Gravity.CENTER
+                        setOnClickListener {
+                            startAttachmentUpload(index)
+                        }
+                    }
+                    failOverlay.addView(failText)
+                    failOverlay.addView(retryBtn)
+                    statusOverlay.addView(failOverlay)
+                }
+                UploadState.IDLE -> {} // 不显示
+            }
+            itemWrap.addView(statusOverlay)
+            // 删除按钮（上传中不显示）
+            if (att.uploadState != UploadState.UPLOADING) {
+                val removeBtn = TextView(this).apply {
+                    text = "X"
+                    setTextColor(0xFFFFFFFF.toInt())
+                    textSize = 10f
+                    setBackgroundColor(0x99000000.toInt())
+                    setPadding(4, 2, 4, 2)
+                    layoutParams = android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                        android.view.Gravity.END or android.view.Gravity.TOP
+                    )
+                    setOnClickListener {
+                        pendingAttachments.removeAt(index)
+                        updateAttachmentPreview()
+                    }
+                }
+                itemWrap.addView(removeBtn)
+            }
+            row.addView(itemWrap)
+        }
+        container.addView(row)
+        binding.attachmentPreview.addView(container)
+    }
+
+    private fun startAttachmentUpload(index: Int) {
+        if (index < 0 || index >= pendingAttachments.size) return
+        val att = pendingAttachments[index]
+        if (att.uploadState == UploadState.UPLOADING || att.uploadState == UploadState.SUCCESS) return
+        att.uploadState = UploadState.UPLOADING
+        att.uploadProgress = 0
+        updateAttachmentPreview()
+        lifecycleScope.launch {
+            val progressCallback: (Int) -> Unit = { progress ->
+                att.uploadProgress = progress
+                runOnUiThread { updateAttachmentPreview() }
+            }
+            val url = when {
+                att.isVideo -> apiService.doUploadVideoFromUri(att.uri, att.mimeType, att.fileName, progressCallback)
+                att.isImage -> apiService.uploadImageFromUri(att.uri, att.mimeType, att.fileName, progressCallback)
+                else -> apiService.uploadFileFromUri(att.uri, att.mimeType, att.fileName, progressCallback)
+            }
+            if (url != null) {
+                att.uploadState = UploadState.SUCCESS
+                att.uploadProgress = 100
+                att.uploadedUrl = url
+            } else {
+                att.uploadState = UploadState.FAILED
+                att.uploadProgress = 0
+            }
+            updateAttachmentPreview()
+        }
+    }
+
+    private suspend fun doUploadFile(cachedFile: java.io.File, mimeType: String, onProgress: (Int) -> Unit = {}): String? {
+        if (!cachedFile.exists() || cachedFile.length() == 0L) return null
+        if (cachedFile.length() > 30 * 1024 * 1024) return null
+        onProgress(30)
+        val result = apiService.uploadFile(cachedFile, mimeType)
+        if (result != null) onProgress(90)
+        return result
+    }
+
+    private suspend fun doUploadVideo(cachedFile: java.io.File, mimeType: String, onProgress: (Int) -> Unit = {}): String? {
+        if (!cachedFile.exists() || cachedFile.length() == 0L) return null
+        if (cachedFile.length() > 20 * 1024 * 1024) return null  // 视频20MB限制
+        return apiService.doUploadVideo(cachedFile, mimeType, onProgress)
+    }
+
+    private fun getFileName(uri: Uri): String? {
+        var name: String? = null
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0) name = cursor.getString(idx)
+            }
+        }
+        return name ?: uri.lastPathSegment
+    }
+}
+
+class MessageAdapter(
+    private val messages: MutableList<Message>,
+    private val markwon: Markwon
+) : RecyclerView.Adapter<MessageAdapter.ViewHolder>() {
+
+    private val imagePattern = Regex("""!\[[^\]]*\]\((https?://[^)]+\.(png|jpg|jpeg|gif|webp))\)""", RegexOption.IGNORE_CASE)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val layout = if (viewType == 0) R.layout.item_message_user else R.layout.item_message_ai
+        return ViewHolder(LayoutInflater.from(parent.context).inflate(layout, parent, false))
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val msg = messages[position]
+        if (msg.role == "assistant") {
+            var content = msg.content
+            var imageUrl: String? = null
+
+            if (content.isNotEmpty()) {
+                content = content.replace("/root/.openclaw/workspace/", "https://ai.xianbaba188.cn/agent/api/workspace/")
+                content = content.replace("sandbox://.openclaw/workspace/", "https://ai.xianbaba188.cn/agent/api/workspace/")
+                content = content.replace("MEDIA:", "")
+                content = content.replace(Regex("\n{3,}"), "\n\n")
+                content = content.replace(Regex("""`([^`]+\.(png|jpg|jpeg|gif|webp|svg|bmp))`""", RegexOption.IGNORE_CASE)) { match ->
+                    val path = match.groupValues[1]
+                    when {
+                        path.startsWith("http") -> "![$path]($path)"
+                        path.startsWith("/") -> "![$path](https://ai.xianbaba188.cn$path)"
+                        else -> "![$path](https://ai.xianbaba188.cn/agent/api/workspace/$path)"
+                    }
+                }
+                content = content.replace("(/agent/api/workspace/", "(https://ai.xianbaba188.cn/agent/api/workspace/")
+                // 兼容纯URL图片
+                content = content.replace(Regex("""(?<!!\[)(https?://[^\s\)]+\.(png|jpg|jpeg|gif|webp))""", RegexOption.IGNORE_CASE)) { match ->
+                    val url = match.groupValues[1]
+                    "![image]($url)"
+                }
+
+                val imageMatch = imagePattern.find(content)
+                if (imageMatch != null) {
+                    imageUrl = imageMatch.groupValues[1]
+                    content = imagePattern.replace(content, "").trim()
+                }
+
+                if (content.isNotBlank()) {
+                    markwon.setMarkdown(holder.tvContent, content)
+                    holder.tvContent.visibility = View.VISIBLE
+                } else {
+                    holder.tvContent.visibility = View.GONE
+                }
+            } else {
+                holder.tvContent.visibility = View.GONE
+            }
+
+            holder.ivAiImage?.let { iv ->
+                if (imageUrl != null) {
+                    iv.visibility = View.VISIBLE
+                    Glide.with(holder.itemView.context).load(imageUrl).into(iv)
+                    iv.setOnClickListener {
+                        val intent = Intent(it.context, FullscreenImageActivity::class.java)
+                        intent.putExtra("image_url", imageUrl)
+                        it.context.startActivity(intent)
+                    }
+                } else {
+                    iv.visibility = View.GONE
+                }
+            }
+        } else {
+            val displayText = if (!msg.text.isNullOrEmpty()) msg.text else msg.content
+            holder.tvContent.text = displayText
+            holder.vvUserVideo?.let { vv ->
+                if (!msg.videoUrl.isNullOrEmpty()) {
+                    vv.visibility = View.VISIBLE
+                    try {
+                        vv.setVideoURI(Uri.parse(msg.videoUrl))
+                        vv.setOnPreparedListener { mp -> mp.setVolume(0f, 0f) }
+                        vv.start()
+                    } catch (e: Exception) { vv.visibility = View.GONE }
+                } else { vv.visibility = View.GONE }
+            }
+            holder.ivUserImage?.let { iv ->
+                if (!msg.imageUrl.isNullOrEmpty() && msg.videoUrl.isNullOrEmpty()) {
+                    iv.visibility = View.VISIBLE
+                    if (msg.imageUrl.startsWith("content://") || msg.imageUrl.startsWith("file://")) {
+                        iv.setImageURI(Uri.parse(msg.imageUrl))
+                    } else {
+                        Glide.with(holder.itemView.context).load(msg.imageUrl).into(iv)
+                    }
+                    iv.setOnClickListener {
+                        val intent = Intent(it.context, FullscreenImageActivity::class.java)
+                        intent.putExtra("image_url", msg.imageUrl)
+                        it.context.startActivity(intent)
+                    }
+                } else { iv.visibility = View.GONE }
+            }
+        }
+    }
+
+    override fun getItemViewType(position: Int) = if (messages[position].role == "user") 0 else 1
+    override fun getItemCount() = messages.size
+
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvContent: TextView = itemView.findViewById(R.id.tvContent)
+        val ivAiImage: ImageView? = itemView.findViewById(R.id.ivAiImage)
+        val ivUserImage: ImageView? = itemView.findViewById(R.id.ivUserImage)
+        val vvUserVideo: VideoView? = itemView.findViewById(R.id.vvUserVideo)
+    }
+}

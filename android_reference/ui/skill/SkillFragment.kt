@@ -1,0 +1,493 @@
+package com.chuangpu.ai.ui.skill
+
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.chuangpu.ai.R
+import com.chuangpu.ai.databinding.FragmentSkillBinding
+import com.chuangpu.ai.model.Skill
+import com.chuangpu.ai.network.ApiService
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import kotlinx.coroutines.launch
+
+// 对照Vue: Skill.vue 完整技能页面
+class SkillFragment : Fragment() {
+
+    private var _binding: FragmentSkillBinding? = null
+    private val binding get() = _binding!!
+
+    private lateinit var apiService: ApiService
+    private lateinit var adapter: SkillAdapter
+
+    private var mainView = "market"  // 对照Vue: mainView
+    private var activeTab = "all"    // 对照Vue: activeTab
+    private var searchKeyword = ""
+    private var searchTimer: android.os.Handler? = null
+    private var currentPage = 1
+    private var totalSkills = 0
+    private var isLoading = false
+    private var hasMore = true
+    private var serverInstalledCount = 0
+    private val favoriteSkills = mutableListOf<Skill>()
+
+    // 分类列表 - 从后端动态加载
+    private var categories = mutableListOf(
+        "all" to "全部"
+    )
+
+    private fun loadCategories() {
+        lifecycleScope.launch {
+            try {
+                val cats = apiService.getCategories()
+                if (cats != null && cats.isNotEmpty()) {
+                    categories = mutableListOf("all" to "全部")
+                    cats.forEach { cat ->
+                        categories.add(cat to cat)
+                    }
+                    setupCategoryTabs()
+                }
+            } catch (e: Exception) {
+                // 加载失败用默认分类
+            }
+        }
+    }
+
+    // 对照Vue: gradientMap - 20个分类
+    private val gradientMap = mapOf(
+        "AI智能体" to "#7c3aed",
+        "AI对话聊天" to "#8b5cf6",
+        "AI写作文案" to "#a855f7",
+        "AI图像生成" to "#ec4899",
+        "AI视频音频" to "#f43f5e",
+        "AI编程辅助" to "#6366f1",
+        "AI搜索问答" to "#8b5cf6",
+        "开发工具" to "#3b82f6",
+        "数据分析" to "#f97316",
+        "办公效率" to "#10b981",
+        "内容创作" to "#ec4899",
+        "设计创意" to "#8b5cf6",
+        "社交媒体" to "#f43f5e",
+        "营销推广" to "#ef4444",
+        "电商工具" to "#f97316",
+        "教育学习" to "#eab308",
+        "翻译语言" to "#0ea5e9",
+        "金融理财" to "#22c55e",
+        "健康医疗" to "#ef4444",
+        "安全合规" to "#6366f1",
+        "生活服务" to "#14b8a6"
+    )
+
+    // 取名字第一个字符作为图标
+    private fun getSkillIcon(name: String): String {
+        if (name.isNullOrEmpty()) return "技"
+        return name.substring(0, 1)
+    }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        _binding = FragmentSkillBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        apiService = ApiService(requireContext())
+        setupUI()
+        loadCategories()
+        loadSkills()
+        loadServerInstalled()
+    }
+
+    private fun setupUI() {
+        // 对照Vue: top-nav (技能市场 | 我的收藏)
+        binding.tvMarket.setOnClickListener {
+            mainView = "market"
+            updateTabUI()
+            loadSkills()
+        }
+        binding.tvFavorites.setOnClickListener {
+            mainView = "favorites"
+            updateTabUI()
+            loadFavoriteSkills()
+        }
+
+        // 对照Vue: van-search 搜索防抖
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                searchKeyword = s.toString().trim()
+                currentPage = 1
+                hasMore = true
+                scheduleSearch()
+            }
+        })
+
+        // 对照Vue: van-tabs 分类标签
+        setupCategoryTabs()
+
+        // 对照Vue: van-list 无限滚动
+        adapter = SkillAdapter({ skill -> showSkillDetail(skill) }, { getSkillIcon(it) }, gradientMap)
+        binding.rvSkills.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvSkills.adapter = adapter
+
+        binding.rvSkills.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
+                if (lastVisibleItem >= adapter.itemCount - 3 && hasMore && !isLoading && mainView == "market") {
+                    loadMore()
+                }
+            }
+        })
+
+        // 已安装技能badge
+        binding.btnMySkills.setOnClickListener { showMySkillsDialog() }
+    }
+
+    private fun updateTabUI() {
+        val activeColor = requireContext().getColor(R.color.text_white)
+        val inactiveColor = requireContext().getColor(R.color.text_gray)
+        binding.tvMarket.setTextColor(if (mainView == "market") activeColor else inactiveColor)
+        binding.tvFavorites.setTextColor(if (mainView == "favorites") activeColor else inactiveColor)
+    }
+
+    // 对照Vue: van-tabs 分类
+    private fun setupCategoryTabs() {
+        binding.categoryTabs.removeAllViews()
+        categories.forEach { (key, name) ->
+            val tab = TextView(requireContext()).apply {
+                text = name
+                setTextColor(requireContext().getColor(R.color.text_gray))
+                textSize = 13f
+                setPadding(24, 12, 24, 12)
+                setBackgroundResource(if (key == activeTab) R.drawable.bg_tab_selected else 0)
+                if (key == activeTab) setTextColor(requireContext().getColor(R.color.text_white))
+                setOnClickListener {
+                    activeTab = key
+                    currentPage = 1
+                    hasMore = true
+                    setupCategoryTabs()
+                    loadSkills()
+                }
+            }
+            binding.categoryTabs.addView(tab)
+        }
+    }
+
+    private fun scheduleSearch() {
+        searchTimer?.removeCallbacksAndMessages(null)
+        searchTimer = android.os.Handler(android.os.Looper.getMainLooper())
+        searchTimer?.postDelayed({ loadSkills() }, 500)
+    }
+
+    // 对照Vue: loadMore (van-list)
+    private fun loadMore() {
+        currentPage++
+        loadSkills(append = true)
+    }
+
+    // 对照Vue: searchSkills
+    private fun loadSkills(append: Boolean = false) {
+        if (isLoading) return
+        isLoading = true
+
+        lifecycleScope.launch {
+            val params = mutableMapOf<String, Any>("page" to currentPage, "limit" to 20)
+            if (activeTab != "all") params["category"] = activeTab
+            if (searchKeyword.isNotEmpty()) params["q"] = searchKeyword
+
+            val result = apiService.searchSkills(params)
+            // debug toast removed
+            isLoading = false
+
+            if (result?.code == 0) {
+                val skills = result.data?.list ?: emptyList()
+                totalSkills = result.data?.total ?: 0
+
+                if (append) {
+                    adapter.appendList(skills)
+                } else {
+                    adapter.submitList(skills)
+                }
+
+                hasMore = skills.size >= 20
+
+                // 对照Vue: market-info
+                binding.tvMarketInfo.text = "技能市场共 $totalSkills 个技能 | 已安装 $serverInstalledCount 个"
+
+                if (adapter.itemCount == 0 && !append) {
+                    binding.emptyState.visibility = View.VISIBLE
+                } else {
+                    binding.emptyState.visibility = View.GONE
+                }
+            } else {
+                if (!append) {
+                    adapter.submitList(emptyList())
+                    binding.emptyState.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+    // 对照Vue: getServerInstalled
+    private fun loadServerInstalled() {
+        lifecycleScope.launch {
+            val result = apiService.getServerInstalled()
+            if (result?.code == 0) {
+                serverInstalledCount = result.data?.total ?: 0
+                binding.tvMarketInfo.text = "技能市场共 $totalSkills 个技能 | 已安装 $serverInstalledCount 个"
+                if (serverInstalledCount > 0) {
+                    binding.btnMySkills.visibility = View.VISIBLE
+                    binding.installedBadge.text = serverInstalledCount.toString()
+                    binding.installedBadge.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+    // 对照Vue: 我的收藏
+    private fun loadFavoriteSkills() {
+        lifecycleScope.launch {
+            val result = apiService.getMySkills()
+            if (result?.code == 0) {
+                favoriteSkills.clear()
+                result.data?.learned?.forEach { name ->
+                    favoriteSkills.add(Skill(name = name))
+                }
+                adapter.submitList(favoriteSkills)
+                if (favoriteSkills.isEmpty()) {
+                    binding.emptyState.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+    // 技能详情 - 对照Vue Skill.vue showSkillDetail
+    private fun showSkillDetail(skill: Skill) {
+        val dialog = BottomSheetDialog(requireContext())
+        val view = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_skill_detail, null)
+        dialog.setContentView(view)
+
+        // 先用列表数据填充，同时异步获取详情API
+        view.findViewById<TextView>(R.id.tvDetailIcon)?.text = getSkillIcon(skill.name)
+        view.findViewById<TextView>(R.id.tvDetailName)?.text = skill.name
+        val category = skill.category ?: "其他"
+        view.findViewById<TextView>(R.id.tvDetailCategory)?.text = category
+        val versionView = view.findViewById<TextView>(R.id.tvDetailVersion)
+        if (!skill.version.isNullOrEmpty()) {
+            versionView?.visibility = View.VISIBLE
+            versionView?.text = "v" + skill.version
+        } else {
+            versionView?.visibility = View.GONE
+        }
+        view.findViewById<TextView>(R.id.tvDetailDesc)?.text = skill.description
+
+        val slug = skill.slug ?: skill.name
+        val installCmd = "请先检查是否已安装SkillHub技能商店，若未安装，请根据 https://xiaolongxia-1301609358.cos.ap-guangzhou.myqcloud.com/install/skillhub.md 安装SkillHub技能商店，然后安装" + slug + "技能。若已安装，则直接安装" + slug + "技能。"
+        view.findViewById<TextView>(R.id.tvInstallCmd)?.text = installCmd
+
+        // 异步获取详情API更新数据 - 对照Vue: showSkillDetail调api.getSkillHubDetail
+        val currentInstallCmd = mutableListOf(installCmd)
+        lifecycleScope.launch {
+            try {
+                val detail = apiService.getSkillDetail(slug)
+                if (detail?.code == 0 && detail.data != null) {
+                    val d = detail.data
+                    view.findViewById<TextView>(R.id.tvDetailName)?.text = d.name
+                    view.findViewById<TextView>(R.id.tvDetailDesc)?.text = d.description
+                    if (!d.version.isNullOrEmpty()) {
+                        versionView?.visibility = View.VISIBLE
+                        versionView?.text = "v" + d.version
+                    }
+                    val detailSlug = d.slug ?: d.name
+                    val newCmd = "请先检查是否已安装SkillHub技能商店，若未安装，请根据 https://xiaolongxia-1301609358.cos.ap-guangzhou.myqcloud.com/install/skillhub.md 安装SkillHub技能商店，然后安装" + detailSlug + "技能。若已安装，则直接安装" + detailSlug + "技能。"
+                    currentInstallCmd[0] = newCmd
+                    view.findViewById<TextView>(R.id.tvInstallCmd)?.text = newCmd
+                }
+            } catch (e: Exception) {
+                // 详情API失败不影响弹窗展示
+            }
+        }
+
+        view.findViewById<Button>(R.id.btnCopyCmd)?.setOnClickListener {
+            val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.text = currentInstallCmd[0]
+            Toast.makeText(requireContext(), "已复制", Toast.LENGTH_SHORT).show()
+        }
+
+        var isFav = favoriteSkills.any { it.name == skill.name }
+        val favBtn = view.findViewById<Button>(R.id.btnFav)
+        favBtn?.text = if (isFav) "❤️" else "🤍"
+        favBtn?.setOnClickListener {
+            isFav = !isFav
+            favBtn.text = if (isFav) "❤️" else "🤍"
+            Toast.makeText(requireContext(), if (isFav) "已收藏" else "已取消收藏", Toast.LENGTH_SHORT).show()
+        }
+
+        view.findViewById<TextView>(R.id.tvSourceDisclaimer)?.text =
+            "来源声明：技能来源于互联网，内容版权归作者所有。侵权处理：如技能涉及版权问题，请通过在线客服联系我们下架。"
+
+        view.findViewById<View>(R.id.btnClose)?.setOnClickListener { dialog.dismiss() }
+
+        // 对照Vue: handleInstall - 存autoSendMsg后跳转聊天页
+        dialog.setOnShowListener {
+            dialog.findViewById<Button>(R.id.btnLearn)?.setOnClickListener {
+                dialog.dismiss()
+                val prefs = com.chuangpu.ai.util.PreferencesManager.getInstance(requireContext())
+                if (!prefs.isVip()) {
+                    startActivity(android.content.Intent(requireContext(), com.chuangpu.ai.ui.vip.VipActivity::class.java))
+                    return@setOnClickListener
+                }
+                prefs.saveAutoSendMsg(currentInstallCmd[0])
+                val intent = android.content.Intent(requireContext(), com.chuangpu.ai.ui.chat.ChatActivity::class.java)
+                startActivity(intent)
+            }
+        }
+
+        // 设置弹窗高度为屏幕85% - 让weight生效实现顶固定+中滚动+底固定
+        val displayMetrics = resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        dialog.behavior.peekHeight = (screenHeight * 0.85).toInt()
+        dialog.behavior.isDraggable = true
+
+        dialog.show()
+    }
+
+    // 对照Vue: 我的技能弹窗
+    private fun showMySkillsDialog() {
+        val dialog = android.app.Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val view = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_my_skills, null)
+        dialog.setContentView(view)
+
+        val installedTab = view.findViewById<TextView>(R.id.tabInstalled)
+        val learnedTab = view.findViewById<TextView>(R.id.tabLearned)
+        val skillsList = view.findViewById<LinearLayout>(R.id.mySkillsList)
+
+        var currentTab = "installed"
+
+        fun updateMySkillsList() {
+            skillsList.removeAllViews()
+            lifecycleScope.launch {
+                if (currentTab == "installed") {
+                    val result = apiService.getServerInstalled()
+                    val items = result?.data?.list ?: emptyList()
+                    for (skill in items) {
+                        skillsList.addView(TextView(requireContext()).apply {
+                            text = skill.name
+                            setTextColor(requireContext().getColor(R.color.text_white))
+                            textSize = 14f
+                            setPadding(12, 10, 12, 10)
+                        })
+                    }
+                    if (items.isEmpty()) {
+                        skillsList.addView(TextView(requireContext()).apply {
+                            text = "暂无"
+                            setTextColor(requireContext().getColor(R.color.text_gray))
+                            gravity = Gravity.CENTER
+                            setPadding(0, 40, 0, 40)
+                        })
+                    }
+                } else {
+                    val result = apiService.getMySkills()
+                    val items = result?.data?.learned ?: emptyList()
+                    for (name in items) {
+                        skillsList.addView(TextView(requireContext()).apply {
+                            text = name
+                            setTextColor(requireContext().getColor(R.color.text_white))
+                            textSize = 14f
+                            setPadding(12, 10, 12, 10)
+                        })
+                    }
+                    if (items.isEmpty()) {
+                        skillsList.addView(TextView(requireContext()).apply {
+                            text = "暂无"
+                            setTextColor(requireContext().getColor(R.color.text_gray))
+                            gravity = Gravity.CENTER
+                            setPadding(0, 40, 0, 40)
+                        })
+                    }
+                }
+            }
+        }
+
+        installedTab?.setOnClickListener {
+            currentTab = "installed"
+            installedTab.setTextColor(requireContext().getColor(R.color.text_white))
+            learnedTab?.setTextColor(requireContext().getColor(R.color.text_gray))
+            updateMySkillsList()
+        }
+        learnedTab?.setOnClickListener {
+            currentTab = "learned"
+            learnedTab?.setTextColor(requireContext().getColor(R.color.text_white))
+            installedTab?.setTextColor(requireContext().getColor(R.color.text_gray))
+            updateMySkillsList()
+        }
+
+        view.findViewById<View>(R.id.btnCloseMySkills)?.setOnClickListener { dialog.dismiss() }
+        updateMySkillsList()
+        dialog.show()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        searchTimer?.removeCallbacksAndMessages(null)
+        _binding = null
+    }
+}
+
+// 对照Vue: skill-card 完整适配器
+class SkillAdapter(
+    private val onItemClick: (Skill) -> Unit,
+    private val getIcon: (String) -> String,
+    private val gradientMap: Map<String, String>
+) : RecyclerView.Adapter<SkillAdapter.ViewHolder>() {
+
+    private var items = listOf<Skill>()
+
+    fun submitList(list: List<Skill>) {
+        items = list
+        notifyDataSetChanged()
+    }
+
+    fun appendList(list: List<Skill>) {
+        items = items + list
+        notifyDataSetChanged()
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_skill, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val skill = items[position]
+        holder.tvName.text = skill.name
+        holder.tvDesc.text = skill.description
+        holder.tvIcon.text = getIcon(skill.name)
+        holder.tvDownloads.text = "⬇ ${skill.downloads}"
+        holder.itemView.setOnClickListener { onItemClick(skill) }
+        holder.btnLearn.setOnClickListener { onItemClick(skill) }
+    }
+
+    override fun getItemCount() = items.size
+
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvName: TextView = itemView.findViewById(R.id.tvName)
+        val tvDesc: TextView = itemView.findViewById(R.id.tvDesc)
+        val tvIcon: TextView = itemView.findViewById(R.id.tvSkillIcon)
+        val tvDownloads: TextView = itemView.findViewById(R.id.tvDownloads)
+        val btnLearn: Button = itemView.findViewById(R.id.btnLearnItem)
+    }
+}
