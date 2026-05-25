@@ -205,9 +205,9 @@ struct LoginView: View {
         }
     }
     
-    private func tabButton(_ title: String, mode tabMode: LoginMode) -> some View {
+    private func tabButton(_ title: String, targetMode: LoginMode) -> some View {
         Button(action: {
-            mode = tabMode
+            withAnimation { mode = targetMode }
             errorMessage = nil
         }) {
             Text(title)
@@ -226,7 +226,7 @@ struct LoginView: View {
     }
     
     private func toggleMode() {
-        mode = mode == .register ? .sms : .register
+        withAnimation { mode = mode == .register ? .sms : .register }
         errorMessage = nil
     }
     
