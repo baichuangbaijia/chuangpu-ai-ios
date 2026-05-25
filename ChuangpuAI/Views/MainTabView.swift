@@ -1,42 +1,40 @@
 import SwiftUI
 
-/// 主Tab页面
+/// 主Tab页 - 对照安卓MainActivity
+/// 安卓要素: 底部3个Tab(首页/技能/我的)、Tab切换图标+文字、选中紫色未选中灰色
 struct MainTabView: View {
     @State private var selectedTab = 0
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            TabView(selection: $selectedTab) {
-                HomeView()
-                    .tag(0)
-                
-                SkillView()
-                    .tag(1)
-                
-                MyView()
-                    .tag(2)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+        ZStack {
+            Constants.bgPrimary.ignoresSafeArea()
             
-            // 自定义TabBar
-            customTabBar
+            VStack(spacing: 0) {
+                // 内容区
+                ZStack {
+                    if selectedTab == 0 { HomeView() }
+                    else if selectedTab == 1 { SkillView() }
+                    else { MyView() }
+                }
+                
+                // 底部Tab栏（对照安卓底部导航）
+                HStack(spacing: 0) {
+                    tabItem(icon: "house.fill", title: "首页", index: 0)
+                    tabItem(icon: "puzzlepiece.extension.fill", title: "技能", index: 1)
+                    tabItem(icon: "person.fill", title: "我的", index: 2)
+                }
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+                .background(
+                    Constants.bgSecondary
+                        .ignoresSafeArea(edges: .bottom)
+                )
+                .overlay(
+                    Rectangle().fill(Constants.bgTertiary).frame(height: 0.5),
+                    alignment: .top
+                )
+            }
         }
-        .ignoresSafeArea(.keyboard)
-    }
-    
-    private var customTabBar: some View {
-        HStack {
-            tabItem(icon: "bubble.left.and.bubble.right.fill", title: "首页", index: 0)
-            tabItem(icon: "wand.and.stars", title: "技能", index: 1)
-            tabItem(icon: "person.fill", title: "我的", index: 2)
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 30)
-        .background(
-            Constants.bgSecondary
-                .shadow(color: .black.opacity(0.3), radius: 20, y: -10)
-        )
     }
     
     private func tabItem(icon: String, title: String, index: Int) -> some View {
@@ -45,17 +43,14 @@ struct MainTabView: View {
                 Image(systemName: icon)
                     .font(.system(size: 22))
                     .foregroundColor(selectedTab == index ? Constants.primaryPurple : Constants.textSecondary)
-                
                 Text(title)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 11, weight: selectedTab == index ? .semibold : .regular))
                     .foregroundColor(selectedTab == index ? Constants.primaryPurple : Constants.textSecondary)
             }
             .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
         }
     }
 }
 
-#Preview {
-    MainTabView()
-        .environmentObject(AuthManager.shared)
-}
+#Preview { MainTabView().environmentObject(AuthManager.shared) }
