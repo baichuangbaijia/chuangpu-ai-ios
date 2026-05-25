@@ -85,8 +85,8 @@ struct LoginView: View {
                     
                     // Tab切换
                     HStack(spacing: 0) {
-                        tabButton("验证码登录", mode: .sms)
-                        tabButton("密码登录", mode: .pwd)
+                        tabButton("验证码登录", targetMode: .sms)
+                        tabButton("密码登录", targetMode: .pwd)
                     }
                     .padding(.horizontal, 40)
                     
