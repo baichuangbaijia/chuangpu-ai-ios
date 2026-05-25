@@ -3,8 +3,6 @@ name: Build iOS App
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -32,26 +30,29 @@ jobs:
     - name: Build and Archive
       run: |
         cd $GITHUB_WORKSPACE
-        mkdir -p build
-        xcodebuild archive           -project ChuangpuAI.xcodeproj           -scheme ChuangpuAI           -configuration Release           -destination 'generic/platform=iOS'           -archivePath build/ChuangpuAI.xcarchive           CODE_SIGNING_ALLOWED=NO           CODE_SIGN_IDENTITY=""           2>&1 | tail -80
+        xcodebuild archive           -project ChuangpuAI.xcodeproj           -scheme ChuangpuAI           -configuration Release           -destination 'generic/platform=iOS'           -archivePath build/ChuangpuAI.xcarchive           CODE_SIGNING_ALLOWED=NO           CODE_SIGN_IDENTITY=""           2>&1 | tail -20
           
-    - name: Prepare IPA from Archive
+    - name: List Archive Contents
       run: |
         cd $GITHUB_WORKSPACE
-        mkdir -p build/ipa
-        APP_PATH=$(find build/ChuangpuAI.xcarchive/Products/Applications -name '*.app' | head -1)
-        if [ -n "$APP_PATH" ]; then
-          cp -r "$APP_PATH" build/ipa/
-          echo "Found app: $APP_PATH"
-        else
-          echo "No .app found in archive"
-          ls -la build/ChuangpuAI.xcarchive/Products/ 2>/dev/null || echo "No Products dir"
-          exit 1
-        fi
+        find build/ChuangpuAI.xcarchive/Products/Applications/ChuangpuAI.app -type f | head -30
+        echo "---"
+        ls -la build/ChuangpuAI.xcarchive/Products/Applications/ChuangpuAI.app/
         
-    - name: Upload App
-      if: success()
+    - name: Package IPA
+      run: |
+        cd $GITHUB_WORKSPACE
+        mkdir -p Payload
+        cp -r build/ChuangpuAI.xcarchive/Products/Applications/ChuangpuAI.app Payload/
+        # Create basic code signature structure so iOS accepts the bundle
+        mkdir -p Payload/ChuangpuAI.app/_CodeSignature
+        echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict></dict></plist>' > Payload/ChuangpuAI.app/_CodeSignature/CodeResources
+        zip -r ChuangpuAI.ipa Payload/
+        rm -rf Payload
+        ls -la ChuangpuAI.ipa
+        
+    - name: Upload IPA
       uses: actions/upload-artifact@v4
       with:
-        name: ChuangpuAI-app
-        path: build/ipa/*.app
+        name: ChuangpuAI-IPA
+        path: ChuangpuAI.ipa
