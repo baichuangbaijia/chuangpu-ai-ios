@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// 首页 v2.0.45 - 虚拟办公室版
-/// 布局：汉堡菜单 → 虚拟办公室(6龙虾) → 模型选择器 → 快捷技能6个 → "开始养虾"按钮 → 底部输入栏
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var inputText = ""
@@ -16,8 +14,9 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 topBar
                 lobsterOffice
-                modelSelectorBtn
+                Spacer(minLength: 6)
                 quickSkillsArea
+                Spacer(minLength: 6)
                 startYangXiaBtn
                 Spacer()
                 bottomInputBar
@@ -28,7 +27,6 @@ struct HomeView: View {
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
     }
     
-    // 1. 顶部栏
     private var topBar: some View {
         HStack {
             Button(action: { showSidebar = true }) {
@@ -48,27 +46,12 @@ struct HomeView: View {
         }.padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 4)
     }
     
-    // 2. 虚拟办公室 - 6只龙虾
     private var lobsterOffice: some View {
         LobsterOfficeView()
-            .frame(height: 220)
+            .frame(height: 300)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Constants.primaryPurple.opacity(0.3), lineWidth: 1)
-            )
-    }
-    
-    // 3. 模型选择器（简化显示）
-    private var modelSelectorBtn: some View {
-        Button(action: { showModelSelector = true }) {
-            let name = getModelName(currentModel)
-            HStack(spacing: 4) {
-                Circle().fill(Constants.accentGreen).frame(width: 8, height: 8)
-                Text("● \(name) ▾").font(.system(size: 13)).foregroundColor(.white)
-            }.padding(.horizontal, 14).padding(.vertical, 8).background(Constants.bgTertiary).cornerRadius(20)
-        }.padding(.top, 8)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Constants.primaryPurple.opacity(0.3), lineWidth: 1))
     }
     
     private func getModelName(_ id: String) -> String {
@@ -77,50 +60,47 @@ struct HomeView: View {
         return "DeepSeek V3"
     }
     
-    // 4. 6个快捷技能
     private var quickSkillsArea: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
                 skillBtn(icon: "tablecells", title: "创建表格", color: Constants.accentBlue)
                 skillBtn(icon: "magnifyingglass", title: "市场调研", color: Constants.accentGreen)
                 skillBtn(icon: "note.text", title: "日常记录", color: Constants.accentOrange)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 skillBtn(icon: "doc.text", title: "创建合同", color: Constants.primaryPurple)
                 skillBtn(icon: "globe", title: "创建网站", color: Constants.secondaryPurple)
                 skillBtn(icon: "airplane", title: "旅行规划", color: Constants.accentBlue)
             }
-        }.padding(.horizontal, 20).padding(.top, 16)
+        }.padding(.horizontal, 16)
     }
     
     private func skillBtn(icon: String, title: String, color: Color) -> some View {
         Button(action: { inputText = "帮我\(title)" }) {
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 ZStack {
-                    Circle().fill(color.opacity(0.15)).frame(width: 36, height: 36)
-                    Image(systemName: icon).font(.system(size: 18)).foregroundColor(color)
+                    Circle().fill(color.opacity(0.15)).frame(width: 32, height: 32)
+                    Image(systemName: icon).font(.system(size: 16)).foregroundColor(color)
                 }
-                Text(title).font(.system(size: 11)).foregroundColor(.white)
-            }.frame(maxWidth: .infinity).frame(height: 72).background(Constants.bgTertiary).cornerRadius(12)
+                Text(title).font(.system(size: 10)).foregroundColor(.white)
+            }.frame(maxWidth: .infinity).frame(height: 64).background(Constants.bgTertiary).cornerRadius(10)
         }
     }
     
-    // 5. "开始养虾"大按钮
     private var startYangXiaBtn: some View {
         Button(action: {}) {
             HStack(spacing: 10) {
-                Image(systemName: "message.fill").font(.system(size: 20))
-                Text("开始养虾").font(.system(size: 18, weight: .bold))
+                Image(systemName: "message.fill").font(.system(size: 18))
+                Text("开始养虾").font(.system(size: 16, weight: .bold))
             }
             .foregroundColor(.white)
-            .frame(maxWidth: .infinity).frame(height: 54)
+            .frame(maxWidth: .infinity).frame(height: 48)
             .background(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing))
-            .cornerRadius(27)
-            .shadow(color: Constants.primaryPurple.opacity(glowPhase), radius: 16, x: 0, y: 6)
-        }.padding(.horizontal, 32).padding(.top, 16)
+            .cornerRadius(24)
+            .shadow(color: Constants.primaryPurple.opacity(glowPhase), radius: 14, x: 0, y: 4)
+        }.padding(.horizontal, 32)
     }
     
-    // 6. 底部输入栏
     private var bottomInputBar: some View {
         HStack(spacing: 12) {
             Button(action: {}) { Image(systemName: "calendar.badge.clock").font(.system(size: 22)).foregroundColor(Constants.primaryPurple) }
@@ -142,7 +122,6 @@ struct ModelSelectorSheet: View {
     @Binding var currentModel: String
     @Environment(\.dismiss) private var dismiss
     private let models = [("deepseek-v3","DeepSeek V3",true),("kimi-2.5","Kimi 2.5",false),("glm-5","GLM-5",false),("minimax-m2.5","MiniMax M2.5",false),("doubao-2.0","豆包 2.0",false)]
-    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -157,7 +136,6 @@ struct ModelSelectorSheet: View {
             .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("取消") { dismiss() }.foregroundColor(Constants.primaryPurple) } }
         }.presentationDetents([.medium])
     }
-    
     private func modelRow(_ m: (String, String, Bool)) -> some View {
         Button(action: { if m.2 { currentModel = m.0; dismiss() } }) {
             HStack {
