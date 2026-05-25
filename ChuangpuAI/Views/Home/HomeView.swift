@@ -137,3 +137,35 @@ struct HomeView: View {
 }
 
 #Preview { HomeView().environmentObject(AuthManager.shared) }
+
+struct ModelSelectorSheet: View {
+    @Binding var currentModel: String
+    @Environment(\.dismiss) private var dismiss
+    private let models = [("deepseek-v3","DeepSeek V3",true),("kimi-2.5","Kimi 2.5",false),("glm-5","GLM-5",false),("minimax-m2.5","MiniMax M2.5",false),("doubao-2.0","豆包 2.0",false)]
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Constants.bgPrimary.ignoresSafeArea()
+                VStack(spacing: 8) {
+                    ForEach(models, id: \.0) { m in modelRow(m) }
+                    Button(action: { dismiss() }) { Text("取消").font(.system(size: 16, weight: .medium)).foregroundColor(Constants.textSecondary).frame(maxWidth: .infinity).frame(height: 48).background(Constants.bgSecondary).cornerRadius(12) }.padding(.top, 8)
+                    Spacer()
+                }.padding(16)
+            }
+            .navigationTitle("选择模型").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("取消") { dismiss() }.foregroundColor(Constants.primaryPurple) } }
+        }.presentationDetents([.medium])
+    }
+    
+    private func modelRow(_ m: (String, String, Bool)) -> some View {
+        Button(action: { if m.2 { currentModel = m.0; dismiss() } }) {
+            HStack {
+                Text(m.1).font(.system(size: 16)).foregroundColor(m.2 ? .white : Constants.textSecondary)
+                if !m.2 { Text("即将上线").font(.system(size: 12)).foregroundColor(Constants.accentOrange).padding(.horizontal, 8).padding(.vertical, 2).background(Constants.accentOrange.opacity(0.2)).cornerRadius(4) }
+                Spacer()
+                if m.0 == currentModel { Text("\u{2713}").font(.system(size: 16, weight: .medium)).foregroundColor(Constants.primaryPurple) }
+            }.padding(.horizontal, 16).padding(.vertical, 16).background(m.0 == currentModel ? Constants.primaryPurple.opacity(0.15) : Constants.bgSecondary).cornerRadius(12)
+        }.disabled(!m.2).opacity(m.2 ? 1 : 0.6)
+    }
+}

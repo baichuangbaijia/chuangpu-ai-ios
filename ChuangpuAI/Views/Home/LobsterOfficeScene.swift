@@ -9,7 +9,7 @@ class LobsterOfficeScene: SKScene {
     private var workTimer: Timer?
     
     // 6个Agent配置
-    private let agentConfigs: [(id: String, name: String, color: UIColor, xRatio: CGFloat)] = [
+    private let agentConfigs: [(String, String, UIColor, CGFloat)] = [
         ("pm",       "主管",     UIColor(hex: "EF4444"), 0.50),  // 红色，中间
         ("file",     "文件员",   UIColor(hex: "3B82F6"), 0.20),  // 蓝色，左
         ("computer", "系统员",   UIColor(hex: "10B981"), 0.35),  // 绿色
@@ -105,7 +105,7 @@ class LobsterOfficeScene: SKScene {
         
         // 办公桌
         for config in agentConfigs {
-            let deskX = w * config.xRatio
+            let deskX = w * config.3
             let deskY = h * 0.28
             
             // 桌面
@@ -156,11 +156,11 @@ class LobsterOfficeScene: SKScene {
         
         for config in agentConfigs {
             let lobster = LobsterCharacter(
-                agentId: config.id,
-                name: config.name,
-                color: config.color
+                agentId: config.0,
+                name: config.1,
+                color: config.2
             )
-            lobster.position = CGPoint(x: w * config.xRatio, y: h * 0.36)
+            lobster.position = CGPoint(x: w * config.3, y: h * 0.36)
             lobster.setScale(0.7)
             addChild(lobster)
             lobsters.append(lobster)
