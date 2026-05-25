@@ -368,7 +368,7 @@ struct ChatView: View {
         Task {
             do {
                 let result = try await APIService.shared.getContainerStatus()
-                let status = result.data?["container_status"]?.value as? String ?? "none"
+                let status = result.data?["container_status"]?.stringValue ?? "none"
                 
                 await MainActor.run {
                     if status == "running" {
@@ -412,7 +412,7 @@ struct ChatView: View {
         Task {
             do {
                 let result = try await APIService.shared.getContainerStatus()
-                let status = result.data?["container_status"]?.value as? String ?? "none"
+                let status = result.data?["container_status"]?.stringValue ?? "none"
                 
                 await MainActor.run {
                     if status == "running" {
@@ -480,7 +480,7 @@ struct ChatView: View {
             sessionId: sessionId,
             model: currentModel,
             onChunk: { chunk in
-                await MainActor.run {
+                Task { await MainActor.run {
                     if let lastMsg = messages.last, lastMsg.role == "assistant" {
                         messages[messages.count - 1].content += chunk
                     } else {
@@ -488,21 +488,24 @@ struct ChatView: View {
                         messages.append(aiMessage)
                     }
                 }
+            }  // Task
             },
             onComplete: { finalContent in
-                await MainActor.run {
+                Task { await MainActor.run {
                     isStreaming = false
                     if let lastMsg = messages.last, lastMsg.role == "assistant" {
                         messages[messages.count - 1].content = finalContent
                     }
                 }
+            }  // Task
             },
             onError: { error in
-                await MainActor.run {
+                Task { await MainActor.run {
                     isStreaming = false
                     let errorMsg = Message(role: "assistant", content: "抱歉，发生了错误: \(error.localizedDescription)")
                     messages.append(errorMsg)
                 }
+            }  // Task
             }
         )
     }
