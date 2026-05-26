@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
 <style>
 *{margin:0;padding:0}
-body{background:#0D0D1A;overflow:hidden;touch-action:none}
+body{background:#E8E8EC;overflow:hidden;touch-action:none}
 canvas{display:block}
 </style>
 </head>
@@ -13,60 +13,10 @@ canvas{display:block}
 <canvas id="c"></canvas>
 <script>
 const c=document.getElementById('c'),cx=c.getContext('2d');
-const W=window.innerWidth,H=340;
+const W=window.innerWidth,H=460;
 c.width=W;c.height=H;
 
-// ========== 配置 ==========
-const BG='#0D0D1A';
-const ANIM_FPS=10;
-const FRAME_MS=1000/ANIM_FPS;
-
-// 6个Agent
-const AGENT_DEF=[
-  {id:'pm',  band:'#EF4444',body:'#E85D3A',dk:'#B34520'},
-  {id:'file',band:'#3B82F6',body:'#E8713A',dk:'#B35A28'},
-  {id:'comp',band:'#10B981',body:'#E8713A',dk:'#B35A28'},
-  {id:'app', band:'#F97316',body:'#E8713A',dk:'#B35A28'},
-  {id:'brow',band:'#8B5CF6',body:'#E8713A',dk:'#B35A28'},
-  {id:'srch',band:'#06B6D4',body:'#E8713A',dk:'#B35A28'},
-];
-
-// 布局：dy是桌面Y坐标，角色坐在桌面后方(屏幕上方)
-const BACK_DY=H*0.42, FRONT_DY=H*0.75;
-const BK=0.55, FT=0.82; // 缩放
-const bDesks=[{x:W*.18,dy:BACK_DY},{x:W*.42,dy:BACK_DY},{x:W*.64,dy:BACK_DY}];
-const fDesks=[{x:W*.22,dy:FRONT_DY},{x:W*.48,dy:FRONT_DY},{x:W*.72,dy:FRONT_DY}];
-const coffeeZ={x:W*.90,y:FRONT_DY-10};
-const gymZ={x:W*.90,y:BACK_DY-15};
-const wcZ={x:W*.08,y:FRONT_DY+20};
-
-// 创建龙虾
-const L=AGENT_DEF.map((a,i)=>{
-  const isBk=i<3, di=isBk?i:i-3;
-  const desk=isBk?bDesks[di]:fDesks[di];
-  const sc=isBk?BK:FT;
-  // 角色Y：桌面Y - 偏移，让身体下半被桌面遮挡
-  const sitY=desk.dy-6*sc;
-  return{...a,x:desk.x,y:sitY,hx:desk.x,hy:sitY,
-    desk,isBk,sc,st:'sit_work',dir:1,
-    fr:0,ft:0,tx:desk.x,ty:sitY,mv:false,
-    arrAct:null,actT:8000+Math.random()*8000,
-    blkT:1500+Math.random()*2000,blk:false,
-    scr:['code','files','chat','game','browser','stats'][i]
-  };
-});
-
-// ========== 帧动画 ==========
-function tickF(l,dt){
-  l.ft+=dt;
-  if(l.ft>=FRAME_MS){
-    l.ft-=FRAME_MS;
-    const mx=l.st==='walk'?4:l.st.startsWith('sit')?3:2;
-    l.fr=(l.fr+1)%mx;
-  }
-}
-
-// ========== 圆角矩形 ==========
+// ========== 工具 ==========
 function rr(x,y,w,h,r){
   cx.beginPath();cx.moveTo(x+r,y);cx.lineTo(x+w-r,y);
   cx.quadraticCurveTo(x+w,y,x+w,y+r);cx.lineTo(x+w,y+h-r);
@@ -74,415 +24,499 @@ function rr(x,y,w,h,r){
   cx.quadraticCurveTo(x,y+h,x,y+h-r);cx.lineTo(x,y+r);
   cx.quadraticCurveTo(x,y,x+r,y);cx.closePath();
 }
+function fillRR(x,y,w,h,r,col){cx.fillStyle=col;rr(x,y,w,h,r);cx.fill();}
+function strokeRR(x,y,w,h,r,col,lw){cx.strokeStyle=col;cx.lineWidth=lw;rr(x,y,w,h,r);cx.stroke();}
+function ell(ex,ey,rx,ry,col){cx.fillStyle=col;cx.beginPath();cx.ellipse(ex,ey,rx,ry,0,0,6.28);cx.fill();}
+
+// ========== 配色（马维斯风）==========
+const BG='#E8E8EC'; // 浅灰背景
+const DESK='#FFFFFF'; // 白色桌面
+const CHAIR='#6B7280'; // 深灰椅子
+const MONITOR='#1F2937'; // 黑色显示器
+const ACCENT='#3B82F6'; // 蓝色屏幕边框
+
+// ========== Agent定义（6个龙虾）==========
+const AG=[
+  {id:'pm',  band:'#EF4444',name:'PM'},
+  {id:'file',band:'#3B82F6',name:'File'},
+  {id:'comp',band:'#10B981',name:'System'},
+  {id:'app', band:'#F59E0B',name:'App'},
+  {id:'brow',band:'#8B5CF6',name:'Browser'},
+  {id:'srch',band:'#06B6D4',name:'Search'},
+];
+
+// ========== 布局 ==========
+// 3排2列 = 6工位
+const ROWS=[
+  {y:H*0.28, sc:0.5},  // 后排（小）
+  {y:H*0.52, sc:0.65}, // 中排
+  {y:H*0.76, sc:0.82}, // 前排（大）
+];
+const deskPositions=[];
+ROWS.forEach((row,ri)=>{
+  const cols=2;
+  const gap=W*0.32;
+  const startX=W*0.22;
+  for(let ci=0;ci<cols;ci++){
+    deskPositions.push({x:startX+ci*gap, y:row.y, sc:row.sc, row:ri});
+  }
+});
+
+// 功能区
+const coffeeArea={x:W*0.88, y:H*0.25};
+const gymArea={x:W*0.88, y:H*0.55};
+const wcArea={x:W*0.07, y:H*0.78};
+
+// ========== 创建龙虾 ==========
+const L=AG.map((a,i)=>{
+  const dp=deskPositions[i];
+  return{
+    ...a, x:dp.x, y:dp.y, hx:dp.x, hy:dp.y,
+    desk:dp, sc:dp.sc, st:'sit', dir:1,
+    fr:0, ft:0, tx:dp.x, ty:dp.y, mv:false,
+    arrAct:null, actT:6000+Math.random()*10000,
+    blkT:1500+Math.random()*2000, blk:false,
+    bobT:Math.random()*6.28
+  };
+});
+
+// ========== 帧动画 ==========
+function tickF(l,dt){
+  l.ft+=dt;l.bobT+=dt*0.003;
+  if(l.ft>=120){l.ft-=120;l.fr=(l.fr+1)%4;}
+}
 
 // ========== 背景 ==========
-function drawBg(t){
+function drawBg(){
   cx.fillStyle=BG;cx.fillRect(0,0,W,H);
-  cx.strokeStyle='rgba(124,58,237,0.04)';cx.lineWidth=0.5;
-  for(let i=0;i<W;i+=30){cx.beginPath();cx.moveTo(i,0);cx.lineTo(i,H);cx.stroke()}
-  for(let i=0;i<H;i+=30){cx.beginPath();cx.moveTo(0,i);cx.lineTo(W,i);cx.stroke()}
+  // 微弱纹理
+  cx.fillStyle='rgba(0,0,0,0.015)';
+  for(let y=0;y<H;y+=3) cx.fillRect(0,y,W,1);
+  // 地面线
+  cx.fillStyle='rgba(0,0,0,0.04)';cx.fillRect(0,H*0.92,W,1);
   // 区域标签
-  cx.textAlign='center';cx.font='bold 8px sans-serif';
-  cx.fillStyle='rgba(124,58,237,0.3)';
-  cx.fillText('COFFEE',coffeeZ.x,coffeeZ.y-28);
-  cx.fillText('GYM',gymZ.x,gymZ.y-22);
-  cx.fillText('WC',wcZ.x,wcZ.y-28);
+  cx.textAlign='center';cx.font='bold 9px -apple-system,sans-serif';
+  cx.fillStyle='rgba(0,0,0,0.2)';
+  cx.fillText('☕ Coffee',coffeeArea.x,coffeeArea.y-50);
+  cx.fillText('🏃 Gym',gymArea.x,gymArea.y-42);
+  cx.fillText('🚻 WC',wcArea.x,wcArea.y-40);
 }
 
-// ========== 工位背景层（椅背+显示器）==========
-function drawDeskBg(desk,sc,scrType,t){
-  const dx=desk.x,dy=desk.dy;
+// ========== 侧视工位（马维斯风：白桌+黑显示器+灰椅子）==========
+function drawDeskBg(dp,scrLabel,t){
+  const dx=dp.x, dy=dp.y, sc=dp.sc;
   cx.save();cx.translate(dx,dy);cx.scale(sc,sc);
   
-  // 椅子靠背
-  cx.fillStyle='#181832';cx.strokeStyle='rgba(124,58,237,0.18)';cx.lineWidth=0.7;
-  rr(-14,2,28,22,6);cx.fill();cx.stroke();
+  // 椅子底座+轮子
+  cx.fillStyle='#9CA3AF';
+  [-14,0,14].forEach(ox=>{cx.beginPath();cx.arc(ox,35,2.5,0,6.28);cx.fill()});
+  // 椅子支柱
+  cx.fillStyle='#9CA3AF';cx.fillRect(-2,18,4,18);
   // 椅子坐垫
-  cx.fillStyle='#1c1c3c';rr(-15,22,30,5,3);cx.fill();
-  // 轮子
-  cx.fillStyle='#111';
-  [-10,0,10].forEach(ox=>{cx.beginPath();cx.arc(ox,29,1.8,0,6.28);cx.fill()});
-  
-  // 显示器支架
-  cx.fillStyle='#181830';cx.fillRect(-2,-6,4,10);
-  // 显示器底座
-  rr(-7,-3,14,3,1);cx.fill();
-  
-  // 显示器
-  cx.fillStyle='#0a0a18';cx.strokeStyle='rgba(124,58,237,0.45)';cx.lineWidth=0.7;
-  rr(-18,-34,36,26,3);cx.fill();cx.stroke();
-  // 屏幕
-  cx.save();cx.beginPath();rr(-16,-32,32,22,2);cx.clip();
-  drawScr(-16,-32,32,22,scrType,t);
-  cx.restore();
+  fillRR(-18,14,36,6,3,CHAIR);
+  // 椅子靠背
+  fillRR(-16,-16,14,32,5,CHAIR);
+  // 靠背上的彩色条（Agent标识）
+  fillRR(-15,-2,12,6,2,AG[deskPositions.indexOf(dp)]?.band||'#EF4444');
   
   // 桌腿
-  cx.fillStyle='#14142a';cx.fillRect(-42,2,3,28);cx.fillRect(39,2,3,28);
+  cx.fillStyle='#E5E7EB';cx.fillRect(-38,12,4,35);cx.fillRect(30,12,4,35);
+  cx.fillRect(-38,40,72,2);
+  
+  // 显示器支架
+  cx.fillStyle='#E5E7EB';cx.fillRect(-2,4,4,10);fillRR(-6,10,12,3,1,'#E5E7EB');
+  
+  // 显示器（朝用户，能看到屏幕）
+  fillRR(-22,-36,44,38,4,MONITOR);
+  strokeRR(-22,-36,44,38,4,ACCENT,1.2);
+  // 屏幕
+  fillRR(-19,-33,38,32,2,'#1E3A5F');
+  // 屏幕内容
+  drawScreenContent(-19,-33,38,32,scrLabel,t);
   
   cx.restore();
 }
 
-function drawScr(sx,sy,sw,sh,type,t){
-  switch(type){
-    case 'code':
-      cx.fillStyle='#0d1117';cx.fillRect(sx,sy,sw,sh);
-      cx.font='2.2px monospace';
-      ['const r=await','fetch(url);','if(!r.ok)','throw err;','return d;'].forEach((l,i)=>{
-        cx.fillStyle=i%2?'rgba(0,255,100,0.5)':'rgba(0,200,255,0.5)';
-        cx.fillText(l.substring(0,7+((Math.sin(t*0.001+i)*2)|0)),sx+1,sy+4+i*4);
-      });
-      if(Math.sin(t*0.004)>0){cx.fillStyle='#0f0';cx.fillRect(sx+20,sy+11,1.5,2)}
-      break;
-    case 'files':
-      cx.fillStyle='#1a1a2e';cx.fillRect(sx,sy,sw,sh);
-      cx.font='2.2px sans-serif';cx.fillStyle='rgba(59,130,246,0.55)';
-      ['report.pdf','data.xlsx','contract.docx','project/'].forEach((f,i)=>cx.fillText(f,sx+1,sy+4+i*5));
-      break;
-    case 'chat':
-      cx.fillStyle='#1e1e30';cx.fillRect(sx,sy,sw,sh);
-      cx.fillStyle='rgba(124,58,237,0.35)';rr(sx+1,sy+2,sw*0.6,3,1);cx.fill();
-      cx.fillStyle='rgba(59,130,246,0.35)';rr(sx+3,sy+8,sw*0.5,3,1);cx.fill();
-      cx.fillStyle='rgba(124,58,237,0.35)';rr(sx+1,sy+14,sw*0.55,3,1);cx.fill();
-      break;
-    case 'game':
-      cx.fillStyle='#0a0a2e';cx.fillRect(sx,sy,sw,sh);
-      cx.fillStyle='rgba(16,185,129,0.7)';
-      cx.beginPath();cx.arc(sx+9+Math.sin(t*0.003)*5,sy+12,3,0,6.28);cx.fill();
-      cx.fillStyle='#fff';cx.font='2.2px sans-serif';cx.fillText('GAME',sx+1,sy+3);
-      break;
-    case 'browser':
-      cx.fillStyle='#1a1a2e';cx.fillRect(sx,sy,sw,sh);
-      cx.fillStyle='#333';cx.fillRect(sx,sy,sw,3);
-      cx.fillStyle='rgba(255,255,255,0.15)';
-      for(let i=0;i<3;i++) cx.fillRect(sx+1,sy+5+i*6,sw-2,3);
-      break;
-    case 'stats':
-      cx.fillStyle='#0d0d1a';cx.fillRect(sx,sy,sw,sh);
-      cx.strokeStyle='rgba(6,182,212,0.6)';cx.lineWidth=1;cx.beginPath();
-      for(let i=0;i<8;i++){cx.lineTo(sx+2+i*4,sy+14-Math.sin(t*0.002+i*0.8)*7)}
-      cx.stroke();
-      break;
-  }
+function drawScreenContent(sx,sy,sw,sh,label,t){
+  // 通用蓝色界面
+  cx.fillStyle='#1E40AF';cx.fillRect(sx,sy,sw,6);
+  cx.fillStyle='rgba(255,255,255,0.7)';cx.font='3px sans-serif';cx.textAlign='left';
+  cx.fillText(label,sx+2,sy+4);
+  // 内容行
+  cx.fillStyle='rgba(255,255,255,0.08)';
+  for(let i=0;i<4;i++) cx.fillRect(sx+2,sy+8+i*6,sw-4,4);
+  // 活动指示器
+  const pulse=Math.sin(t*0.004)*0.3+0.7;
+  cx.fillStyle=`rgba(59,130,246,${pulse*0.6})`;
+  cx.beginPath();cx.arc(sx+sw-6,sy+sh-6,2,0,6.28);cx.fill();
 }
 
-// ========== 工位前景层（桌面+键盘，遮挡角色下半身）==========
-function drawDeskFg(desk,sc){
-  cx.save();cx.translate(desk.x,desk.dy);cx.scale(sc,sc);
-  // 桌面 - 厚实的桌面
-  cx.fillStyle='#1a1a36';cx.strokeStyle='rgba(124,58,237,0.3)';cx.lineWidth=0.7;
-  rr(-46,4,92,12,3);cx.fill();cx.stroke();
-  // 桌面高光
-  cx.fillStyle='rgba(124,58,237,0.06)';rr(-44,5,88,3,2);cx.fill();
+// ========== 桌面前景层 ==========
+function drawDeskTop(dp){
+  const dx=dp.x, dy=dp.y, sc=dp.sc;
+  cx.save();cx.translate(dx,dy);cx.scale(sc,sc);
+  // 白色桌面
+  fillRR(-42,10,84,10,3,DESK);
+  strokeRR(-42,10,84,10,3,'rgba(0,0,0,0.08)',0.8);
   // 键盘
-  cx.fillStyle='#222244';rr(-15,7,30,4,1);cx.fill();
-  cx.fillStyle='rgba(124,58,237,0.08)';
-  for(let r=0;r<3;r++) for(let c2=0;c2<7;c2++) cx.fillRect(-13+c2*4,8+r*1.2,2.5,0.8);
+  fillRR(-16,12,28,4,1,'#D1D5DB');
+  // 键盘按键
+  cx.fillStyle='rgba(0,0,0,0.06)';
+  for(let r=0;r<3;r++) for(let c2=0;c2<6;c2++) cx.fillRect(-14+c2*4.5,13+r*1.2,3,0.7);
   // 鼠标
-  cx.fillStyle='#222244';rr(18,7,5,4,2);cx.fill();
-  // 小植物
-  cx.fillStyle='#2a2a4a';rr(-40,0,5,6,1);cx.fill();
-  cx.fillStyle='rgba(16,185,129,0.35)';cx.beginPath();cx.arc(-37.5,-1,3.5,0,6.28);cx.fill();
+  fillRR(16,12,6,4,2,'#D1D5DB');
   cx.restore();
 }
 
-// ========== 咖啡机 ==========
-function drawCoffee(px,py){
+// ========== 咖啡区（银灰咖啡机+杯子柜子，马维斯风）==========
+function drawCoffeeArea(t){
+  const px=coffeeArea.x, py=coffeeArea.y;
   cx.save();cx.translate(px,py);
-  cx.fillStyle='#1E1E3A';cx.strokeStyle='rgba(124,58,237,0.25)';cx.lineWidth=0.7;
-  rr(-16,-20,32,32,4);cx.fill();cx.stroke();
-  cx.fillStyle='#111128';cx.fillRect(-5,-2,10,7);
-  cx.fillStyle='#ddd';rr(-4,7,8,6,1);cx.fill();
-  // 蒸汽
-  cx.strokeStyle='rgba(255,255,255,0.12)';cx.lineWidth=0.6;
-  const t=Date.now();
-  for(let i=0;i<3;i++){
-    cx.beginPath();cx.moveTo(-2+i*2,5);
-    cx.quadraticCurveTo(-2+i*2+Math.sin(t*0.003+i)*2,-4,-2+i*2,-8);cx.stroke();
-  }
-  cx.restore();
-}
-
-// ========== 跑步机 ==========
-function drawGym(gx,gy){
-  cx.save();cx.translate(gx,gy);
-  cx.fillStyle='#1E1E3A';cx.strokeStyle='rgba(124,58,237,0.25)';cx.lineWidth=0.7;
-  rr(-20,-8,40,18,4);cx.fill();cx.stroke();
-  // 移动纹理
-  cx.strokeStyle='rgba(124,58,237,0.08)';cx.lineWidth=0.4;
-  const off=(Date.now()*0.008)%8;
-  for(let i=-18;i<20;i+=8){const lx=i+off;if(lx>-18&&lx<18){cx.beginPath();cx.moveTo(lx,-6);cx.lineTo(lx,6);cx.stroke()}}
-  // 扶手
-  cx.strokeStyle='rgba(124,58,237,0.35)';cx.lineWidth=1.3;
-  cx.beginPath();cx.moveTo(-18,-8);cx.lineTo(-18,-22);cx.stroke();
-  cx.beginPath();cx.moveTo(18,-8);cx.lineTo(18,-22);cx.stroke();
-  cx.fillStyle='#2a2a4a';rr(-8,-24,16,5,2);cx.fill();
-  cx.restore();
-}
-
-// ========== 卫生间 ==========
-function drawWC(wx,wy){
-  cx.save();cx.translate(wx,wy);
-  cx.fillStyle='#12122a';cx.strokeStyle='rgba(124,58,237,0.18)';cx.lineWidth=0.5;
-  rr(-16,-22,32,40,3);cx.fill();cx.stroke();
-  cx.fillStyle='#ddd';cx.beginPath();cx.ellipse(0,6,9,11,0,0,6.28);cx.fill();
-  cx.fillStyle='#eee';cx.beginPath();cx.ellipse(0,4,6,7,0,0,6.28);cx.fill();
-  cx.fillStyle='#ccc';cx.beginPath();cx.ellipse(0,-1,7,3.5,0,3.14,0);cx.fill();
-  cx.fillStyle='#bbb';rr(-6,-18,12,7,2);cx.fill();
-  cx.restore();
-}
-
-// ========== 龙虾绘制 ==========
-
-// 背面视图（坐着，面对屏幕，背对用户）
-function drawBack(l,t){
-  const s=l.sc,f=l.fr;
-  const typeAnim=l.st==='sit_work'?Math.sin(t*0.008+f*1.2)*2:0;
-  const breath=Math.sin(t*0.003+f*0.8)*0.7;
   
-  cx.save();cx.translate(l.x,l.y+breath);cx.scale(s,s);
+  // 置物架（浅灰金属架）
+  fillRR(-30,-42,60,4,1,'#D1D5DB'); // 上层架板
+  fillRR(-30,-8,60,4,1,'#D1D5DB');  // 下层架板
+  // 架子侧板
+  cx.fillStyle='#E5E7EB';
+  cx.fillRect(-30,-46,3,44);
+  cx.fillRect(27,-46,3,44);
+  
+  // 咖啡机（上层，银灰色）
+  fillRR(-12,-38,24,18,3,'#9CA3AF');
+  strokeRR(-12,-38,24,18,3,'rgba(0,0,0,0.1)',0.5);
+  // 咖啡机顶部
+  fillRR(-10,-40,20,5,2,'#6B7280');
+  // 出水口
+  cx.fillStyle='#6B7280';cx.fillRect(-3,-22,6,4);
+  // 按钮
+  ell(8,-30,2,2,'#EF4444');
+  // 杯子在出水口下
+  fillRR(-4,-16,8,8,1,'#F9FAFB');
+  cx.fillStyle='rgba(139,90,43,0.4)';cx.fillRect(-3,-15,6,3);
+  
+  // 下层：4个杯子整齐排列
+  for(let i=0;i<4;i++){
+    const cupX=-22+i*12;
+    fillRR(cupX,-5,8,8,1,'#F9FAFB');
+    strokeRR(cupX,-5,8,8,1,'rgba(0,0,0,0.06)',0.4);
+    // 杯中液体
+    cx.fillStyle='rgba(139,90,43,0.3)';cx.fillRect(cupX+1,-4,6,2);
+  }
+  
+  // 蒸汽
+  cx.strokeStyle='rgba(255,255,255,0.4)';cx.lineWidth=0.6;
+  for(let i=0;i<2;i++){
+    cx.beginPath();cx.moveTo(-1+i*3,-20);
+    cx.quadraticCurveTo(-1+i*3+Math.sin(t*0.003+i)*2,-28,-1+i*3,-32);cx.stroke();
+  }
+  
+  cx.restore();
+}
+
+// ========== 健身区（银灰跑步机）==========
+function drawGymArea(t){
+  const gx=gymArea.x, gy=gymArea.y;
+  cx.save();cx.translate(gx,gy);
+  
+  // 跑步机主体
+  fillRR(-24,-10,48,22,4,'#D1D5DB');
+  strokeRR(-24,-10,48,22,4,'rgba(0,0,0,0.08)',0.6);
+  // 跑步带
+  fillRR(-20,-6,40,14,3,'#9CA3AF');
+  // 跑步带移动纹
+  cx.strokeStyle='rgba(0,0,0,0.05)';cx.lineWidth=0.5;
+  const off=(t*0.01)%10;
+  for(let i=-18;i<20;i+=10){const lx=i+off;if(lx>-18&&lx<18){cx.beginPath();cx.moveTo(lx,-4);cx.lineTo(lx,8);cx.stroke()}}
+  // 扶手
+  cx.strokeStyle='#9CA3AF';cx.lineWidth=3;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(-22,-10);cx.lineTo(-22,-28);cx.stroke();
+  cx.beginPath();cx.moveTo(22,-10);cx.lineTo(22,-28);cx.stroke();
+  // 控制面板
+  fillRR(-10,-32,20,6,2,'#E5E7EB');
+  // 显示屏
+  fillRR(-6,-30,12,3,1,'#1E3A5F');
+  // 按钮
+  ell(0,-26,1.5,1.5,'#EF4444');
+  
+  cx.restore();
+}
+
+// ========== 卫生间（黑色马桶，逼真）==========
+function drawWCArea(){
+  const wx=wcArea.x, wy=wcArea.y;
+  cx.save();cx.translate(wx,wy);
+  
+  // 隔间墙
+  fillRR(-20,-30,40,56,3,'#E5E7EB');
+  strokeRR(-20,-30,40,56,3,'rgba(0,0,0,0.06)',0.6);
+  // 门
+  fillRR(-18,-28,36,52,2,'#F3F4F6');
+  strokeRR(-18,-28,36,52,2,'rgba(0,0,0,0.04)',0.4);
+  
+  // 马桶水箱 - 黑色
+  fillRR(-8,-24,16,10,2,'#374151');
+  strokeRR(-8,-24,16,10,2,'rgba(0,0,0,0.1)',0.5);
+  // 冲水按钮
+  ell(0,-20,3,2,'#6B7280');
+  
+  // 马桶底座 - 黑色
+  fillRR(-12,-6,24,20,6,'#374151');
+  strokeRR(-12,-6,24,20,6,'rgba(0,0,0,0.1)',0.5);
+  
+  // 马桶圈 - 黑色坐垫
+  fillRR(-10,-4,20,16,6,'#1F2937');
+  strokeRR(-10,-4,20,16,6,'rgba(0,0,0,0.15)',0.5);
+  
+  // 马桶内圈
+  ell(0,4,7,5,'#111827');
+  
+  // 马桶盖（半开状态）
+  cx.fillStyle='#1F2937';
+  cx.beginPath();cx.moveTo(-9,-4);cx.quadraticCurveTo(-10,-16,0,-17);
+  cx.quadraticCurveTo(10,-16,9,-4);cx.closePath();cx.fill();
+  strokeRR(-9,-17,18,14,6,'rgba(0,0,0,0.12)',0.5);
+  
+  // 门把手
+  ell(14,0,2,2,'#9CA3AF');
+  
+  cx.restore();
+}
+
+// ========== 乐高风龙虾（侧视坐着，面朝屏幕/右方）==========
+function drawLobsterSit(l,t){
+  const sc=l.sc;
+  const bob=Math.sin(l.bobT)*1.5;
+  
+  cx.save();cx.translate(l.x, l.y+bob);cx.scale(sc,sc);
   
   // 投影
-  cx.fillStyle='rgba(0,0,0,0.18)';cx.beginPath();cx.ellipse(0,18,14,3.5,0,0,6.28);cx.fill();
+  ell(0,28,16,3,'rgba(0,0,0,0.06)');
   
-  // 身体背面（深色壳）
-  cx.fillStyle=l.dk;rr(-12,-6,24,22,8);cx.fill();
-  // 身体侧边高光
-  cx.fillStyle='rgba(255,255,255,0.04)';rr(-12,-6,8,22,4);cx.fill();
+  // 尾巴（后面的小扇形）
+  cx.fillStyle='#DC2626';
+  cx.beginPath();cx.moveTo(-8,8);cx.quadraticCurveTo(-14,12,-10,20);
+  cx.quadraticCurveTo(-6,18,-4,16);cx.quadraticCurveTo(-2,18,0,20);
+  cx.quadraticCurveTo(2,18,4,16);cx.quadraticCurveTo(6,18,8,20);
+  cx.quadraticCurveTo(6,12,0,8);cx.closePath();cx.fill();
   
-  // 彩色领环（关键识别特征，从背面可见）
-  cx.fillStyle=l.band;rr(-13,-1,26,5,2);cx.fill();
-  cx.fillStyle='rgba(255,255,255,0.18)';rr(-11,0,22,1.5,1);cx.fill();
+  // 后方钳子
+  cx.save();cx.translate(-8,-2);cx.rotate(-0.15);
+  cx.strokeStyle='#DC2626';cx.lineWidth=3;cx.lineCap='round';cx.lineJoin='round';
+  cx.beginPath();cx.moveTo(0,0);cx.lineTo(-6,3);cx.lineTo(-10,0);cx.stroke();
+  cx.beginPath();cx.moveTo(-6,3);cx.lineTo(-10,6);cx.stroke();
+  cx.restore();
   
-  // 头部（背面）
-  cx.fillStyle=l.body;cx.beginPath();cx.arc(0,-12,10,0,6.28);cx.fill();
-  cx.fillStyle='rgba(255,255,255,0.06)';cx.beginPath();cx.arc(-2,-14,4,0,6.28);cx.fill();
+  // 身体（黑色方块，乐高风）
+  fillRR(-12,-6,24,24,5,'#1F2937');
+  // 身体高光
+  fillRR(-10,-5,8,20,4,'rgba(255,255,255,0.04)');
+  
+  // 彩色领环/围巾（Agent标识）
+  fillRR(-14,0,28,5,2,l.band);
+  fillRR(-12,1,24,2,1,'rgba(255,255,255,0.2)');
+  
+  // 头部（红色圆头，龙虾特征）
+  ell(2,-12,12,11,'#DC2626');
+  // 头部高光
+  ell(0,-15,5,4,'rgba(255,255,255,0.1)');
   
   // 触须
-  cx.strokeStyle=l.dk;cx.lineWidth=1.1;cx.lineCap='round';
-  const wb=Math.sin(t*0.004)*2;
-  cx.beginPath();cx.moveTo(-3,-21);cx.quadraticCurveTo(-7+wb,-28,-5+wb,-33);cx.stroke();
-  cx.beginPath();cx.moveTo(3,-21);cx.quadraticCurveTo(7-wb,-28,5-wb,-33);cx.stroke();
+  const wb=Math.sin(t*0.004+l.bobT)*2;
+  cx.strokeStyle='#B91C1C';cx.lineWidth=1.5;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(-2,-22);cx.quadraticCurveTo(-6+wb,-30,-4+wb,-34);cx.stroke();
+  cx.beginPath();cx.moveTo(4,-22);cx.quadraticCurveTo(8-wb,-30,6-wb,-34);cx.stroke();
   
-  // 钳子（从背面两侧伸出，打字时微动）
-  const ca=typeAnim*0.12;
-  cx.save();cx.translate(-13,-1);cx.rotate(-0.25+ca);
-  cx.strokeStyle=l.body;cx.lineWidth=2.2;cx.lineCap='round';cx.lineJoin='round';
-  cx.beginPath();cx.moveTo(0,0);cx.lineTo(-5,3);cx.lineTo(-9,0);cx.stroke();
-  cx.beginPath();cx.moveTo(-5,3);cx.lineTo(-9,6);cx.stroke();
-  cx.restore();
-  cx.save();cx.translate(13,-1);cx.rotate(0.25-ca);
-  cx.strokeStyle=l.body;cx.lineWidth=2.2;cx.lineCap='round';cx.lineJoin='round';
-  cx.beginPath();cx.moveTo(0,0);cx.lineTo(5,3);cx.lineTo(9,0);cx.stroke();
-  cx.beginPath();cx.moveTo(5,3);cx.lineTo(9,6);cx.stroke();
-  cx.restore();
-  
-  // 打字特效
-  if(l.st==='sit_work'&&Math.sin(t*0.012)>0.4){
-    cx.strokeStyle='rgba(124,58,237,0.25)';cx.lineWidth=0.5;
-    cx.beginPath();cx.moveTo(-7,8);cx.lineTo(-7,12);cx.stroke();
-    cx.beginPath();cx.moveTo(7,8);cx.lineTo(7,12);cx.stroke();
+  // 眼睛
+  const ey=l.blk?0.15:1;
+  cx.save();cx.translate(8,-13);cx.scale(1,ey);
+  ell(0,0,4.5,4.5,'#FFFFFF');
+  if(!l.blk){
+    ell(1.5,0,2.2,2.2,'#1F2937');
+    ell(0.8,-1,0.7,0.7,'rgba(255,255,255,0.8)');
   }
+  cx.restore();
+  
+  // 腮红
+  ell(10,-8,3,2,'rgba(255,150,150,0.3)');
+  
+  // 嘴巴
+  cx.strokeStyle='#B91C1C';cx.lineWidth=0.8;cx.lineCap='round';
+  cx.beginPath();cx.arc(8,-6,2,0.3,2.5);cx.stroke();
+  
+  // 前方钳子（打字微动）
+  const typeAnim=l.st==='sit'?Math.sin(t*0.008)*0.12:0;
+  cx.save();cx.translate(12,-2);cx.rotate(0.1+typeAnim);
+  cx.strokeStyle='#DC2626';cx.lineWidth=3.5;cx.lineCap='round';cx.lineJoin='round';
+  cx.beginPath();cx.moveTo(0,0);cx.lineTo(10,2);cx.lineTo(14,-1);cx.stroke();
+  cx.beginPath();cx.moveTo(10,2);cx.lineTo(14,5);cx.stroke();
+  cx.restore();
   
   cx.restore();
 }
 
-// 侧面视图（走路）
-function drawWalk(l,t){
-  const s=l.sc,f=l.fr,d=l.dir;
-  const bob=[0,-1.5,0,-1.5][f]*s;
-  // 腿的位置（4帧走路循环）
-  const legY=[
-    [[-5,10,-9,17],[5,10,1,17],[-1,10,5,17]],
-    [[-3,10,-5,17],[3,10,-1,17],[0,10,2,17]],
-    [[5,10,9,17],[-5,10,-1,17],[-1,10,-5,17]],
-    [[3,10,5,17],[-3,10,1,17],[0,10,-2,17]]
-  ];
+// ========== 走路龙虾 ==========
+function drawLobsterWalk(l,t){
+  const sc=l.sc, d=l.dir, f=l.fr;
+  const bob=[0,-2,0,-2][f];
+  const legSwing=[[-5,1],[-2,0],[5,-1],[2,0]][f];
   
-  cx.save();cx.translate(l.x,l.y+bob);cx.scale(d*s,s);
+  cx.save();cx.translate(l.x,l.y+bob);cx.scale(d*sc,sc);
   
-  // 投影
-  cx.fillStyle='rgba(0,0,0,0.12)';cx.beginPath();cx.ellipse(0,18,12,3,0,0,6.28);cx.fill();
+  ell(0,26,14,3,'rgba(0,0,0,0.05)');
   
   // 尾巴
-  cx.fillStyle=l.dk;cx.beginPath();
-  cx.moveTo(-2,8);cx.quadraticCurveTo(-7,14,-5,20);
-  cx.quadraticCurveTo(-1,18,0,16);
-  cx.quadraticCurveTo(1,18,3,20);
-  cx.quadraticCurveTo(5,14,2,8);cx.fill();
+  cx.fillStyle='#DC2626';cx.beginPath();
+  cx.moveTo(-4,6);cx.quadraticCurveTo(-10,10,-8,18);
+  cx.quadraticCurveTo(-4,16,-2,14);cx.quadraticCurveTo(0,16,2,18);
+  cx.quadraticCurveTo(4,16,6,14);cx.quadraticCurveTo(8,16,10,18);
+  cx.quadraticCurveTo(6,10,2,6);cx.fill();
   
   // 腿
-  cx.strokeStyle=l.dk;cx.lineWidth=1.4;cx.lineCap='round';
-  legY[f].forEach(leg=>{cx.beginPath();cx.moveTo(leg[0],leg[1]);cx.lineTo(leg[2],leg[3]);cx.stroke()});
+  cx.strokeStyle='#1F2937';cx.lineWidth=2;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(-3,12);cx.lineTo(-5+legSwing[0],22);cx.stroke();
+  cx.beginPath();cx.moveTo(3,12);cx.lineTo(5+legSwing[1],22);cx.stroke();
   
   // 身体
-  cx.fillStyle=l.body;cx.beginPath();cx.ellipse(0,3,12,10,0,0,6.28);cx.fill();
-  cx.fillStyle='rgba(255,255,255,0.08)';cx.beginPath();cx.ellipse(-2,0,4,3.5,-0.3,0,6.28);cx.fill();
-  
-  // 彩色领环
-  cx.fillStyle=l.band;rr(-13,0,26,4.5,2);cx.fill();
-  cx.fillStyle='rgba(255,255,255,0.15)';rr(-11,0.5,22,1.2,1);cx.fill();
+  fillRR(-12,-6,24,22,5,'#1F2937');
+  fillRR(-10,-5,8,18,4,'rgba(255,255,255,0.04)');
+  fillRR(-14,0,28,5,2,l.band);
+  fillRR(-12,1,24,2,1,'rgba(255,255,255,0.2)');
   
   // 头
-  cx.fillStyle=l.body;cx.beginPath();cx.ellipse(0,-7,9,8,0,0,6.28);cx.fill();
+  ell(0,-12,11,10,'#DC2626');
+  ell(-2,-14,4,3,'rgba(255,255,255,0.08)');
   
   // 触须
-  const wb=Math.sin(t*0.005)*1.5;
-  cx.strokeStyle=l.dk;cx.lineWidth=0.9;cx.lineCap='round';
-  cx.beginPath();cx.moveTo(-3,-14);cx.quadraticCurveTo(-5+wb,-20,-4+wb,-24);cx.stroke();
-  cx.beginPath();cx.moveTo(3,-14);cx.quadraticCurveTo(5-wb,-20,4-wb,-24);cx.stroke();
+  const wb=Math.sin(t*0.005)*2;
+  cx.strokeStyle='#B91C1C';cx.lineWidth=1.3;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(-3,-21);cx.quadraticCurveTo(-5+wb,-28,-3+wb,-32);cx.stroke();
+  cx.beginPath();cx.moveTo(3,-21);cx.quadraticCurveTo(5-wb,-28,3-wb,-32);cx.stroke();
   
-  // 眼睛（侧面一个）
-  const ey=l.blk?0.2:1;
-  cx.fillStyle='#fff';cx.save();cx.translate(3,-8);cx.scale(1,ey);
-  cx.beginPath();cx.arc(0,0,2.8,0,6.28);cx.fill();cx.restore();
-  if(!l.blk){cx.fillStyle='#111';cx.beginPath();cx.arc(4,-8,1.3,0,6.28);cx.fill();
-  cx.fillStyle='rgba(255,255,255,0.6)';cx.beginPath();cx.arc(3.5,-9,0.5,0,6.28);cx.fill()}
+  // 眼睛
+  const ey=l.blk?0.15:1;
+  cx.save();cx.translate(5,-12);cx.scale(1,ey);
+  ell(0,0,3.5,3.5,'#FFFFFF');
+  if(!l.blk){ell(1,0,1.8,1.8,'#1F2937');ell(0.3,-0.8,0.5,0.5,'rgba(255,255,255,0.7)');}
+  cx.restore();
+  ell(7,-8,2.5,1.5,'rgba(255,150,150,0.25)');
   
-  // 钳子（前方的）
+  // 钳子
   const cSwing=Math.sin(t*0.008+f)*0.15;
   cx.save();cx.translate(10,0);cx.rotate(cSwing);
-  cx.strokeStyle=l.body;cx.lineWidth=2.2;cx.lineCap='round';cx.lineJoin='round';
-  cx.beginPath();cx.moveTo(0,0);cx.lineTo(7,2);cx.lineTo(10,-1);cx.stroke();
-  cx.beginPath();cx.moveTo(7,2);cx.lineTo(10,5);cx.stroke();
+  cx.strokeStyle='#DC2626';cx.lineWidth=3;cx.lineCap='round';cx.lineJoin='round';
+  cx.beginPath();cx.moveTo(0,0);cx.lineTo(8,2);cx.lineTo(11,-1);cx.stroke();
+  cx.beginPath();cx.moveTo(8,2);cx.lineTo(11,5);cx.stroke();
   cx.restore();
   
   cx.restore();
 }
 
-// 特殊状态
+// ========== 特殊状态 ==========
 function drawSpecial(l,t){
-  const s=l.sc;
-  const breath=Math.sin(t*0.003)*0.8;
-  cx.save();cx.translate(l.x,l.y+breath);cx.scale(s,s);
-  
-  // 投影
-  cx.fillStyle='rgba(0,0,0,0.12)';cx.beginPath();cx.ellipse(0,18,12,3,0,0,6.28);cx.fill();
+  const sc=l.sc;
+  cx.save();cx.translate(l.x,l.y);cx.scale(sc,sc);
+  ell(0,26,14,3,'rgba(0,0,0,0.05)');
   
   if(l.st==='coffee'){
-    // 站立正面偏侧，拿咖啡
-    // 腿
-    cx.strokeStyle=l.dk;cx.lineWidth=1.4;cx.lineCap='round';
-    cx.beginPath();cx.moveTo(-4,10);cx.lineTo(-6,17);cx.stroke();
-    cx.beginPath();cx.moveTo(4,10);cx.lineTo(6,17);cx.stroke();
-    // 身体
-    cx.fillStyle=l.body;cx.beginPath();cx.ellipse(0,3,11,9,0,0,6.28);cx.fill();
-    // 领环
-    cx.fillStyle=l.band;rr(-12,0,24,4.5,2);cx.fill();
-    // 头
-    cx.fillStyle=l.body;cx.beginPath();cx.ellipse(0,-7,8,7,0,0,6.28);cx.fill();
-    // 触须
-    cx.strokeStyle=l.dk;cx.lineWidth=0.9;cx.lineCap='round';
-    cx.beginPath();cx.moveTo(-3,-13);cx.quadraticCurveTo(-5,-18,-4,-22);cx.stroke();
-    cx.beginPath();cx.moveTo(3,-13);cx.quadraticCurveTo(5,-18,4,-22);cx.stroke();
+    // 站立正面，拿咖啡
+    cx.strokeStyle='#1F2937';cx.lineWidth=2;cx.lineCap='round';
+    cx.beginPath();cx.moveTo(-4,12);cx.lineTo(-6,22);cx.stroke();
+    cx.beginPath();cx.moveTo(4,12);cx.lineTo(6,22);cx.stroke();
+    fillRR(-12,-6,24,22,5,'#1F2937');
+    fillRR(-14,0,28,5,2,l.band);
+    ell(0,-12,10,10,'#DC2626');
+    cx.strokeStyle='#B91C1C';cx.lineWidth=1.3;cx.lineCap='round';
+    cx.beginPath();cx.moveTo(-3,-21);cx.quadraticCurveTo(-5,-26,-4,-30);cx.stroke();
+    cx.beginPath();cx.moveTo(3,-21);cx.quadraticCurveTo(5,-26,4,-30);cx.stroke();
     // 眼睛
-    cx.fillStyle='#fff';cx.beginPath();cx.arc(-3,-8,2.2,0,6.28);cx.fill();
-    cx.beginPath();cx.arc(3,-8,2.2,0,6.28);cx.fill();
-    cx.fillStyle='#111';cx.beginPath();cx.arc(-2.5,-8,1,0,6.28);cx.fill();
-    cx.beginPath();cx.arc(3.5,-8,1,0,6.28);cx.fill();
+    ell(-4,-12,3,3,'#FFFFFF');ell(4,-12,3,3,'#FFFFFF');
+    ell(-3,-12,1.5,1.5,'#1F2937');ell(5,-12,1.5,1.5,'#1F2937');
+    ell(-5,-9,2.5,1.5,'rgba(255,150,150,0.25)');ell(5,-9,2.5,1.5,'rgba(255,150,150,0.25)');
+    cx.strokeStyle='#B91C1C';cx.lineWidth=0.8;cx.beginPath();cx.arc(0,-8,2,0.3,2.8);cx.stroke();
     // 咖啡杯
-    cx.fillStyle='#ddd';rr(8,-3,5,7,1);cx.fill();
-    cx.fillStyle='rgba(139,90,43,0.5)';cx.fillRect(9,-2,3,2);
-    // 蒸汽
-    cx.strokeStyle='rgba(255,255,255,0.15)';cx.lineWidth=0.5;
-    cx.beginPath();cx.moveTo(10.5,-5);cx.quadraticCurveTo(11+Math.sin(t*0.005)*1.5,-9,10.5,-12);cx.stroke();
+    fillRR(10,-4,7,9,1,'#F9FAFB');strokeRR(10,-4,7,9,1,'rgba(0,0,0,0.1)',0.5);
+    cx.fillStyle='rgba(139,90,43,0.5)';cx.fillRect(11,-3,5,3);
+    cx.strokeStyle='rgba(255,255,255,0.3)';cx.lineWidth=0.5;
+    cx.beginPath();cx.moveTo(13.5,-7);cx.quadraticCurveTo(14+Math.sin(t*0.005)*1,-11,13.5,-14);cx.stroke();
     
   } else if(l.st==='exercise'){
-    // 跑步姿势
-    const rf=l.fr%4;
-    const runBob=[0,-1,0,-1][rf];
+    const rf=l.fr%4;const runBob=[0,-1.5,0,-1.5][rf];
     cx.translate(0,runBob);
-    // 腿（交替）
-    cx.strokeStyle=l.dk;cx.lineWidth=1.4;cx.lineCap='round';
-    const legAlt=rf%2===0;
-    cx.beginPath();cx.moveTo(-3,10);cx.lineTo(legAlt?-7:1,17);cx.stroke();
-    cx.beginPath();cx.moveTo(3,10);cx.lineTo(legAlt?-1:7,17);cx.stroke();
-    // 身体
-    cx.fillStyle=l.body;cx.beginPath();cx.ellipse(0,3,11,9,0,0,6.28);cx.fill();
-    // 领环
-    cx.fillStyle=l.band;rr(-12,0,24,4.5,2);cx.fill();
-    // 头
-    cx.fillStyle=l.body;cx.beginPath();cx.ellipse(0,-7,8,7,0,0,6.28);cx.fill();
-    // 触须
-    cx.strokeStyle=l.dk;cx.lineWidth=0.9;cx.lineCap='round';
-    cx.beginPath();cx.moveTo(-3,-13);cx.quadraticCurveTo(-4,-18,-3,-22);cx.stroke();
-    cx.beginPath();cx.moveTo(3,-13);cx.quadraticCurveTo(4,-18,3,-22);cx.stroke();
-    // 眼睛
-    cx.fillStyle='#fff';cx.beginPath();cx.arc(-3,-8,2.2,0,6.28);cx.fill();
-    cx.beginPath();cx.arc(3,-8,2.2,0,6.28);cx.fill();
-    cx.fillStyle='#111';cx.beginPath();cx.arc(-2.5,-8,1,0,6.28);cx.fill();
-    cx.beginPath();cx.arc(3.5,-8,1,0,6.28);cx.fill();
-    // 汗珠
-    if(Math.sin(t*0.006)>0){
-      cx.fillStyle='rgba(59,130,246,0.4)';
-      cx.beginPath();cx.arc(7+Math.sin(t*0.008)*2,-3,1.2,0,6.28);cx.fill();
-    }
+    cx.strokeStyle='#1F2937';cx.lineWidth=2;cx.lineCap='round';
+    const la=rf%2===0;
+    cx.beginPath();cx.moveTo(-3,12);cx.lineTo(la?-7:1,22);cx.stroke();
+    cx.beginPath();cx.moveTo(3,12);cx.lineTo(la?-1:7,22);cx.stroke();
+    fillRR(-12,-6,24,22,5,'#1F2937');
+    fillRR(-14,0,28,5,2,l.band);
+    ell(0,-12,10,10,'#DC2626');
+    cx.strokeStyle='#B91C1C';cx.lineWidth=1.3;cx.lineCap='round';
+    cx.beginPath();cx.moveTo(-3,-21);cx.quadraticCurveTo(-4,-26,-3,-30);cx.stroke();
+    cx.beginPath();cx.moveTo(3,-21);cx.quadraticCurveTo(4,-26,3,-30);cx.stroke();
+    ell(-4,-12,3,3,'#FFFFFF');ell(4,-12,3,3,'#FFFFFF');
+    ell(-3,-12,1.5,1.5,'#1F2937');ell(5,-12,1.5,1.5,'#1F2937');
+    if(Math.sin(t*0.006)>0) ell(8,-4,1.5,1.5,'rgba(59,130,246,0.4)');
     
   } else if(l.st==='sleep'){
-    // 趴在桌上打盹 - 俯卧姿势
-    // 身体
-    cx.fillStyle=l.dk;rr(-11,-4,22,20,7);cx.fill();
-    // 领环
-    cx.fillStyle=l.band;rr(-12,0,24,4.5,2);cx.fill();
-    // 头趴下
-    cx.fillStyle=l.body;cx.beginPath();cx.ellipse(0,-8,9,6,0.1,0,6.28);cx.fill();
-    // Zzz
-    cx.font='7px sans-serif';cx.textAlign='left';cx.fillStyle='rgba(255,255,255,0.35)';
-    const zy=-16+Math.sin(t*0.002)*3;
-    cx.fillText('z',8,zy);cx.font='5px sans-serif';cx.fillText('z',14,zy-4);
-    cx.font='3px sans-serif';cx.fillText('z',18,zy-7);
+    // 趴桌打盹 - 背面
+    fillRR(-12,-6,24,22,5,'#1F2937');
+    fillRR(-14,0,28,5,2,l.band);
+    ell(0,-12,11,9,'#DC2626');
+    cx.strokeStyle='#B91C1C';cx.lineWidth=1.3;cx.lineCap='round';
+    cx.beginPath();cx.moveTo(-2,-20);cx.quadraticCurveTo(-4,-26,-3,-30);cx.stroke();
+    cx.beginPath();cx.moveTo(2,-20);cx.quadraticCurveTo(4,-26,3,-30);cx.stroke();
+    cx.font='8px sans-serif';cx.textAlign='left';cx.fillStyle='rgba(0,0,0,0.25)';
+    const zy=-22+Math.sin(t*0.002)*3;
+    cx.fillText('z',10,zy);cx.font='6px sans-serif';cx.fillText('z',16,zy-4);
+    cx.font='4px sans-serif';cx.fillText('z',20,zy-7);
     
   } else if(l.st==='toilet'){
-    // 在卫生间 - 门关着
-    cx.fillStyle='#1a1a35';rr(-14,-18,28,34,3);cx.fill();
-    cx.strokeStyle='rgba(124,58,237,0.2)';cx.lineWidth=0.5;
-    rr(-14,-18,28,34,3);cx.stroke();
-    // 把手
-    cx.fillStyle='#444';cx.beginPath();cx.arc(9,2,1.8,0,6.28);cx.fill();
-    // 占用
-    cx.fillStyle='#EF4444';cx.font='bold 4px sans-serif';cx.textAlign='center';
-    cx.fillText('BUSY',0,-6);
+    // 在卫生间 - 关门
+    fillRR(-16,-20,32,40,3,'#E5E7EB');strokeRR(-16,-20,32,40,3,'rgba(0,0,0,0.06)',0.5);
+    ell(12,0,2,2,'#9CA3AF');
+    // 红色占用标识
+    fillRR(-8,-8,16,6,1,'#FEE2E2');cx.fillStyle='#EF4444';cx.font='bold 4px sans-serif';cx.textAlign='center';
+    cx.fillText('BUSY',0,-4);
   }
   
   cx.restore();
 }
 
-// 绘制龙虾（选择视图）
 function drawLob(l,t){
-  if(l.st==='sit_work'||l.st==='sit_idle') drawBack(l,t);
-  else if(l.st==='walk') drawWalk(l,t);
+  if(l.st==='sit') drawLobsterSit(l,t);
+  else if(l.st==='walk') drawLobsterWalk(l,t);
   else drawSpecial(l,t);
 }
 
-// ========== AI行为 ==========
+// ========== AI ==========
 let lastAI=0;
 function ai(t){
-  if(t-lastAI<4500)return;lastAI=t;
-  const idle=L.filter(l=>(l.st==='sit_work'||l.st==='sit_idle')&&!l.mv);
+  if(t-lastAI<5000)return;lastAI=t;
+  const idle=L.filter(l=>l.st==='sit'&&!l.mv);
   if(!idle.length)return;
   const l=idle[(Math.random()*idle.length)|0];
   const r=Math.random();
-  if(r<0.25){l.st='sit_work';l.actT=6000+Math.random()*10000}
-  else if(r<0.40){mvTo(l,coffeeZ,'coffee')}
-  else if(r<0.52){mvTo(l,gymZ,'exercise')}
-  else if(r<0.62){mvTo(l,wcZ,'toilet')}
-  else if(r<0.72){l.st='sleep';l.actT=6000+Math.random()*6000}
-  else if(r<0.82){l.st='sit_idle';l.actT=4000+Math.random()*4000}
-  else{l.st='sit_work';l.actT=8000+Math.random()*8000}
+  if(r<0.30){l.st='sit';l.actT=8000+Math.random()*12000}
+  else if(r<0.42){mvTo(l,coffeeArea,'coffee')}
+  else if(r<0.54){mvTo(l,gymArea,'exercise')}
+  else if(r<0.64){mvTo(l,wcArea,'toilet')}
+  else if(r<0.74){l.st='sleep';l.actT=5000+Math.random()*5000}
+  else if(r<0.84){l.st='sit';l.actT=6000+Math.random()*8000}
+  else{l.st='sit';l.actT=10000+Math.random()*10000}
 }
 function mvTo(l,z,act){
-  l.tx=z.x;l.ty=z.y-8*l.sc;l.mv=true;l.st='walk';
+  l.tx=z.x;l.ty=z.y-5*l.sc;l.mv=true;l.st='walk';
   l.dir=l.tx>l.x?1:-1;l.arrAct=act;
 }
 function goHome(l){
   l.tx=l.hx;l.ty=l.hy;l.mv=true;l.st='walk';
-  l.dir=l.tx>l.x?1:-1;l.arrAct='sit_work';l.actT=8000+Math.random()*8000;
+  l.dir=l.tx>l.x?1:-1;l.arrAct='sit';l.actT=8000+Math.random()*10000;
 }
 
 // ========== 更新 ==========
 function update(dt,t){
   L.forEach(l=>{
     tickF(l,dt);
-    l.blkT-=dt;if(l.blkT<=0){l.blk=!l.blk;l.blkT=l.blk?80:1500+Math.random()*3000}
+    l.blkT-=dt;if(l.blkT<=0){l.blk=!l.blk;l.blkT=l.blk?80:2000+Math.random()*3000}
     if(l.actT>0&&!l.mv){l.actT-=dt;if(l.actT<=0)goHome(l)}
     if(!l.mv)return;
     const dx=l.tx-l.x,dy=l.ty-l.y,d=Math.sqrt(dx*dx+dy*dy);
@@ -490,7 +524,7 @@ function update(dt,t){
       if(l.arrAct){l.st=l.arrAct;l.arrAct=null;l.actT=5000+Math.random()*5000;l.fr=0}
       return;
     }
-    const spd=1.1*(l.isBk?0.7:1);
+    const spd=0.8*l.sc;
     l.x+=dx/d*spd;l.y+=dy/d*spd;
     if(Math.abs(dx)>1)l.dir=dx>0?1:-1;
   });
@@ -502,23 +536,22 @@ function loop(t){
   const dt=lt?t-lt:16;lt=t;
   update(dt,t);ai(t);
   
-  drawBg(t);
+  drawBg();
   
-  // 工位背景层
-  bDesks.forEach((d,i)=>drawDeskBg(d,BK,L[i].scr,t));
-  fDesks.forEach((d,i)=>drawDeskBg(d,FT,L[i+3].scr,t));
+  // 功能区（先画，在背景层）
+  drawCoffeeArea(t);
+  drawGymArea(t);
+  drawWCArea();
   
-  // 区域设施
-  drawCoffee(coffeeZ.x,coffeeZ.y);
-  drawGym(gymZ.x,gymZ.y);
-  drawWC(wcZ.x,wcZ.y);
+  // 工位背景层（椅子+显示器）
+  deskPositions.forEach((dp,i)=>drawDeskBg(dp,AG[i].name,t));
   
-  // 龙虾（按Y排序）
+  // 龙虾（按Y排序，远到近）
   [...L].sort((a,b)=>a.y-b.y).forEach(l=>drawLob(l,t));
   
-  // 工位前景层（桌面遮挡角色下半身）
+  // 桌面前景层
   L.forEach(l=>{
-    if(l.st.startsWith('sit')) drawDeskFg(l.desk,l.sc);
+    if(l.st==='sit'||l.st==='sleep') drawDeskTop(l.desk);
   });
   
   requestAnimationFrame(loop);
