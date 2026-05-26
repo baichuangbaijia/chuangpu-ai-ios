@@ -19,11 +19,11 @@ function init(){
 const W=window.innerWidth,H=window.innerHeight;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x0D0D1A);
-scene.fog=new THREE.FogExp2(0x0D0D1A,0.04);
+scene.fog=new THREE.FogExp2(0x0D0D1A,0.02);
 
-const camera=new THREE.PerspectiveCamera(45,W/H,0.1,100);
-camera.position.set(0,8,10);
-camera.lookAt(0,0.5,0);
+const camera=new THREE.PerspectiveCamera(42,W/H,0.1,100);
+camera.position.set(0,7,9);
+camera.lookAt(0,1,0);
 
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(W,H);
@@ -31,286 +31,256 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.2;
+renderer.toneMappingExposure=1.3;
 document.body.appendChild(renderer.domElement);
 
 // ===== 灯光 =====
-scene.add(new THREE.AmbientLight(0x1a1a3e,0.6));
-const dLight=new THREE.DirectionalLight(0xffffff,0.9);
-dLight.position.set(5,12,5);dLight.castShadow=true;
-dLight.shadow.mapSize.set(1024,1024);
+scene.add(new THREE.AmbientLight(0x2a2a4e,0.8));
+const dLight=new THREE.DirectionalLight(0xffffff,1.0);
+dLight.position.set(4,10,6);dLight.castShadow=true;
+dLight.shadow.mapSize.set(2048,2048);
 dLight.shadow.camera.near=1;dLight.shadow.camera.far=30;
-dLight.shadow.camera.left=-10;dLight.shadow.camera.right=10;
-dLight.shadow.camera.top=10;dLight.shadow.camera.bottom=-10;
+dLight.shadow.camera.left=-12;dLight.shadow.camera.right=12;
+dLight.shadow.camera.top=12;dLight.shadow.camera.bottom=-12;
 scene.add(dLight);
-
-// 彩色氛围灯
-const pLight1=new THREE.PointLight(0x7C3AED,0.6,15);pLight1.position.set(-5,4,-3);scene.add(pLight1);
-const pLight2=new THREE.PointLight(0x3B82F6,0.4,15);pLight2.position.set(5,4,3);scene.add(pLight2);
-const pLight3=new THREE.PointLight(0x10B981,0.3,12);pLight3.position.set(0,3,-5);scene.add(pLight3);
+const pLight1=new THREE.PointLight(0x7C3AED,0.7,18);pLight1.position.set(-6,5,-4);scene.add(pLight1);
+const pLight2=new THREE.PointLight(0x3B82F6,0.5,18);pLight2.position.set(6,5,4);scene.add(pLight2);
+const pLight3=new THREE.PointLight(0x10B981,0.4,14);pLight3.position.set(0,4,-6);scene.add(pLight3);
 
 // ===== 地板 =====
 const floor=new THREE.Mesh(
-  new THREE.PlaneGeometry(24,18),
+  new THREE.PlaneGeometry(30,22),
   new THREE.MeshStandardMaterial({color:0x111128,roughness:0.85,metalness:0.15})
 );
 floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
-// 网格
-const grid=new THREE.GridHelper(24,48,0x7C3AED,0x1a1a3e);
-grid.position.y=0.01;grid.material.opacity=0.12;grid.material.transparent=true;scene.add(grid);
+const grid=new THREE.GridHelper(30,60,0x7C3AED,0x1a1a3e);
+grid.position.y=0.01;grid.material.opacity=0.1;grid.material.transparent=true;scene.add(grid);
 
-// ===== 材质库 =====
+// ===== 材质 =====
 const M={
-  red:new THREE.MeshStandardMaterial({color:0xDC2626,roughness:0.5,metalness:0.1}),
-  dkRed:new THREE.MeshStandardMaterial({color:0xB91C1C,roughness:0.6}),
-  body:new THREE.MeshStandardMaterial({color:0x1F2937,roughness:0.7,metalness:0.2}),
-  white:new THREE.MeshStandardMaterial({color:0xF9FAFB,roughness:0.5}),
-  desk:new THREE.MeshStandardMaterial({color:0xE5E7EB,roughness:0.6,metalness:0.1}),
-  chair:new THREE.MeshStandardMaterial({color:0x4B5563,roughness:0.6,metalness:0.3}),
-  monitor:new THREE.MeshStandardMaterial({color:0x1F2937,roughness:0.3,metalness:0.5}),
-  screen:new THREE.MeshStandardMaterial({color:0x1E3A5F,emissive:0x1E3A5F,emissiveIntensity:0.5}),
-  silver:new THREE.MeshStandardMaterial({color:0x9CA3AF,roughness:0.4,metalness:0.6}),
+  red:new THREE.MeshStandardMaterial({color:0xE85D3A,roughness:0.45,metalness:0.1}),
+  dkRed:new THREE.MeshStandardMaterial({color:0xC04A2A,roughness:0.5}),
+  ltRed:new THREE.MeshStandardMaterial({color:0xF07050,roughness:0.4}),
+  body:new THREE.MeshStandardMaterial({color:0x1F2937,roughness:0.65,metalness:0.2}),
+  bodyHL:new THREE.MeshStandardMaterial({color:0x374151,roughness:0.6}),
+  white:new THREE.MeshStandardMaterial({color:0xF9FAFB,roughness:0.4}),
+  desk:new THREE.MeshStandardMaterial({color:0xE5E7EB,roughness:0.5,metalness:0.1}),
+  chair:new THREE.MeshStandardMaterial({color:0x4B5563,roughness:0.5,metalness:0.3}),
+  monitor:new THREE.MeshStandardMaterial({color:0x1F2937,roughness:0.2,metalness:0.5}),
+  screen:new THREE.MeshStandardMaterial({color:0x1E3A5F,emissive:0x1E3A5F,emissiveIntensity:0.6}),
+  silver:new THREE.MeshStandardMaterial({color:0x9CA3AF,roughness:0.35,metalness:0.6}),
   black:new THREE.MeshStandardMaterial({color:0x1F2937,roughness:0.6,metalness:0.3}),
-  eyeW:new THREE.MeshStandardMaterial({color:0xFFFFFF,roughness:0.3}),
+  eyeW:new THREE.MeshStandardMaterial({color:0xFFFFFF,roughness:0.2}),
   eyeP:new THREE.MeshStandardMaterial({color:0x111111}),
-  blush:new THREE.MeshStandardMaterial({color:0xFF9999,transparent:true,opacity:0.35}),
+  blush:new THREE.MeshStandardMaterial({color:0xFF9999,transparent:true,opacity:0.3}),
+  clawIn:new THREE.MeshStandardMaterial({color:0xD14E2B,roughness:0.4}),
+  coffee:new THREE.MeshStandardMaterial({color:0x8B5A2B}),
 };
-
-function collarMat(c){return new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.4,roughness:0.4,metalness:0.3})}
+function collarMat(c){return new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.5,roughness:0.3,metalness:0.3})}
 
 // ===== 创建龙虾 =====
 function createLobster(bandColor){
   const g=new THREE.Group();
-  // 头
-  const head=new THREE.Mesh(new THREE.SphereGeometry(0.38,12,10),M.red);
-  head.position.y=1.05;head.scale.set(1,0.88,0.9);head.castShadow=true;g.add(head);
-  // 眼睛
+  
+  // 头部：龙虾长椭圆头+额剑
+  const headGeo=new THREE.SphereGeometry(0.35,10,8);
+  headGeo.scale(1.1,0.85,1.3);
+  const head=new THREE.Mesh(headGeo,M.red);
+  head.position.set(0,1.35,0.15);head.castShadow=true;g.add(head);
+  
+  // 额剑（头顶尖刺）
+  const rostrum=new THREE.Mesh(new THREE.ConeGeometry(0.03,0.35,4),M.dkRed);
+  rostrum.position.set(0,1.55,0.45);rostrum.rotation.x=-0.6;g.add(rostrum);
+  
+  // 眼柄+眼睛（龙虾眼长在柄上，关键特征）
   [-1,1].forEach(s=>{
-    const ew=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6),M.eyeW);
-    ew.position.set(s*0.17,1.1,0.3);g.add(ew);
-    const ep=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),M.eyeP);
-    ep.position.set(s*0.17,1.1,0.38);g.add(ep);
-    // 腮红
-    const bl=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),M.blush);
-    bl.position.set(s*0.27,0.97,0.22);bl.scale.set(1.3,0.7,0.5);g.add(bl);
+    const stalk=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.025,0.15,5),M.dkRed);
+    stalk.position.set(s*0.18,1.48,0.35);stalk.rotation.x=-0.3;stalk.rotation.z=s*0.15;g.add(stalk);
+    const ew=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,6),M.eyeW);
+    ew.position.set(s*0.2,1.58,0.42);g.add(ew);
+    const ep=new THREE.Mesh(new THREE.SphereGeometry(0.04,6,6),M.eyeP);
+    ep.position.set(s*0.2,1.58,0.49);g.add(ep);
+    const bl=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),M.blush);
+    bl.position.set(s*0.28,1.3,0.3);bl.scale.set(1.2,0.6,0.5);g.add(bl);
   });
-  // 触须
+  
+  // 长触须（龙虾标志）
   [-1,1].forEach(s=>{
-    const a=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.008,0.45,5),M.dkRed);
-    a.position.set(s*0.1,1.42,0);a.rotation.z=s*0.35;g.add(a);
-    // 触须尖
-    const at=new THREE.Mesh(new THREE.SphereGeometry(0.025,5,5),M.dkRed);
-    at.position.set(s*0.1+Math.sin(s*0.35)*0.22,1.65,0);g.add(at);
+    const ant1=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.006,0.8,4),M.dkRed);
+    ant1.position.set(s*0.12,1.6,0.2);ant1.rotation.z=s*0.2;ant1.rotation.x=-0.4;g.add(ant1);
+    const ant1t=new THREE.Mesh(new THREE.SphereGeometry(0.015,4,4),M.dkRed);
+    ant1t.position.set(s*0.12+Math.sin(s*0.2)*0.4,1.9,0.2+Math.cos(0.4)*0.4);g.add(ant1t);
+    const ant2=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.005,0.4,4),M.dkRed);
+    ant2.position.set(s*0.08,1.55,0.3);ant2.rotation.z=s*0.15;ant2.rotation.x=-0.5;g.add(ant2);
   });
-  // 身体
-  const body=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.65,0.38),M.body);
-  body.position.y=0.52;body.castShadow=true;g.add(body);
-  // 领环
-  const collar=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.04,6,12),collarMat(bandColor));
-  collar.position.y=0.82;collar.rotation.x=Math.PI/2;g.add(collar);
-  // 左臂
-  const lArm=new THREE.Group();lArm.position.set(-0.32,0.65,0);
-  const lArmM=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.03,0.3,5),M.red);
-  lArmM.position.set(-0.08,-0.1,0);lArmM.rotation.z=0.6;lArm.add(lArmM);
-  // 左钳
-  const lClaw=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,6),M.red);
-  lClaw.scale.set(1.2,0.6,0.8);lClaw.position.set(-0.22,-0.2,0);lArm.add(lClaw);
-  const lPin1=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.12,4),M.dkRed);
-  lPin1.position.set(-0.3,-0.2,0);lPin1.rotation.z=0.3;lArm.add(lPin1);
-  const lPin2=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.12,4),M.dkRed);
-  lPin2.position.set(-0.3,-0.2,0.04);lPin2.rotation.z=0.3;lArm.add(lPin2);
-  g.add(lArm);
-  // 右臂
-  const rArm=new THREE.Group();rArm.position.set(0.32,0.65,0);
-  const rArmM=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.03,0.3,5),M.red);
-  rArmM.position.set(0.08,-0.1,0);rArmM.rotation.z=-0.6;rArm.add(rArmM);
-  const rClaw=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,6),M.red);
-  rClaw.scale.set(1.2,0.6,0.8);rClaw.position.set(0.22,-0.2,0);rArm.add(rClaw);
-  const rPin1=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.12,4),M.dkRed);
-  rPin1.position.set(0.3,-0.2,0);rPin1.rotation.z=-0.3;rArm.add(rPin1);
-  const rPin2=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.12,4),M.dkRed);
-  rPin2.position.set(0.3,-0.2,0.04);rPin2.rotation.z=-0.3;rArm.add(rPin2);
-  g.add(rArm);
-  // 尾巴
-  const tail=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.3,6,1,true),M.red);
-  tail.position.set(0,0.32,-0.22);tail.rotation.x=-0.4;g.add(tail);
-  // 腿
+  
+  // 身体分节
+  for(let i=0;i<5;i++){
+    const sw=0.42-i*0.04,sh=0.28-i*0.02;
+    const seg=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,6),i%2===0?M.red:M.ltRed);
+    seg.scale.set(sw/0.2,sh/0.2,0.8);
+    seg.position.set(0,0.95-i*0.15,-0.1-i*0.08);
+    seg.castShadow=true;g.add(seg);
+  }
+  
+  // 黑色工装覆盖
+  const torso=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.7,0.4),M.body);
+  torso.position.set(0,0.75,0);torso.castShadow=true;g.add(torso);
+  const torsoHL=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.65,0.01),M.bodyHL);
+  torsoHL.position.set(0,0.75,0.2);g.add(torsoHL);
+  
+  // 彩色领环
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(0.32,0.05,6,14),collarMat(bandColor));
+  collar.position.set(0,1.05,0);collar.rotation.x=Math.PI/2;g.add(collar);
+  
+  // 大虾钳
+  const lClawG=new THREE.Group();lClawG.position.set(-0.42,0.85,0.1);
+  const lArmM=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.035,0.4,6),M.red);
+  lArmM.position.set(-0.12,-0.08,0);lArmM.rotation.z=0.5;lClawG.add(lArmM);
+  const lCB=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,6),M.red);
+  lCB.scale.set(1.6,0.5,1.0);lCB.position.set(-0.3,-0.2,0);lClawG.add(lCB);
+  const lJU=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.03,0.08),M.dkRed);
+  lJU.position.set(-0.42,-0.16,0);lJU.rotation.z=0.15;lClawG.add(lJU);
+  const lJD=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.03,0.08),M.dkRed);
+  lJD.position.set(-0.42,-0.24,0);lJD.rotation.z=-0.1;lClawG.add(lJD);
+  for(let i=0;i<3;i++){const th=new THREE.Mesh(new THREE.ConeGeometry(0.015,0.04,3),M.clawIn);th.position.set(-0.36+i*0.05,-0.18,0);lClawG.add(th);}
+  g.add(lClawG);
+  
+  const rClawG=new THREE.Group();rClawG.position.set(0.42,0.85,0.1);
+  const rArmM=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.035,0.4,6),M.red);
+  rArmM.position.set(0.12,-0.08,0);rArmM.rotation.z=-0.5;rClawG.add(rArmM);
+  const rCB=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,6),M.red);
+  rCB.scale.set(1.6,0.5,1.0);rCB.position.set(0.3,-0.2,0);rClawG.add(rCB);
+  const rJU=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.03,0.08),M.dkRed);
+  rJU.position.set(0.42,-0.16,0);rJU.rotation.z=-0.15;rClawG.add(rJU);
+  const rJD=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.03,0.08),M.dkRed);
+  rJD.position.set(0.42,-0.24,0);rJD.rotation.z=0.1;rClawG.add(rJD);
+  for(let i=0;i<3;i++){const th=new THREE.Mesh(new THREE.ConeGeometry(0.015,0.04,3),M.clawIn);th.position.set(0.36-i*0.05,-0.18,0);rClawG.add(th);}
+  g.add(rClawG);
+  
+  // 扇形尾巴
+  const tailFan=new THREE.Group();tailFan.position.set(0,0.5,-0.35);
+  for(let i=0;i<5;i++){
+    const a=(i-2)*0.3;
+    const tp=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4),M.ltRed);
+    tp.scale.set(0.4,0.8,1.2);tp.position.set(Math.sin(a)*0.08,0.05,-Math.cos(a)*0.15);
+    tp.rotation.x=a*0.3;tailFan.add(tp);
+  }
+  g.add(tailFan);
+  
+  // 小腿
   [-1,1].forEach(s=>{
-    const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.025,0.22,5),M.body);
-    leg.position.set(s*0.14,0.1,0);g.add(leg);
+    for(let i=0;i<3;i++){
+      const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.015,0.25,4),M.dkRed);
+      leg.position.set(s*0.22,0.25+i*0.12,-0.05+i*0.08);leg.rotation.z=s*0.3;g.add(leg);
+    }
   });
-
-  g.userData={head,body,lArm,rArm,collar,tail};
-  g.castShadow=true;
+  
+  g.userData={head,lClawG,rClawG,tailFan,torso,collar};
   return g;
 }
 
-// ===== 创建工位 =====
+// ===== 大号工位 =====
 function createDesk(){
   const g=new THREE.Group();
-  // 桌面
-  const top=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.06,0.7),M.desk);
-  top.position.y=0.75;top.castShadow=true;top.receiveShadow=true;g.add(top);
-  // 桌腿
-  [[-0.6,0,-0.28],[0.6,0,-0.28],[-0.6,0,0.28],[0.6,0,0.28]].forEach(p=>{
-    const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.72,5),M.silver);
-    leg.position.set(p[0],0.36,p[2]);leg.castShadow=true;g.add(leg);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.07,0.9),M.desk);
+  top.position.y=0.9;top.castShadow=true;top.receiveShadow=true;g.add(top);
+  [[-0.75,-0.35],[0.75,-0.35],[-0.75,0.35],[0.75,0.35]].forEach(([x,z])=>{
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.87,6),M.silver);
+    leg.position.set(x,0.44,z);leg.castShadow=true;g.add(leg);
   });
-  // 显示器
-  const monBase=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.04,8),M.silver);
-  monBase.position.set(0,0.8,-0.2);g.add(monBase);
-  const monStand=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.25,5),M.silver);
-  monStand.position.set(0,0.93,-0.2);g.add(monStand);
-  const monFrame=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.4,0.03),M.monitor);
-  monFrame.position.set(0,1.2,-0.2);monFrame.castShadow=true;g.add(monFrame);
-  const screen=new THREE.Mesh(new THREE.BoxGeometry(0.54,0.34,0.01),M.screen);
-  screen.position.set(0,1.2,-0.185);g.add(screen);
-  g.userData={screen};
+  const monBase=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.14,0.05,8),M.silver);
+  monBase.position.set(0,0.95,-0.3);g.add(monBase);
+  const monStand=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.35,6),M.silver);
+  monStand.position.set(0,1.15,-0.3);g.add(monStand);
+  const monFrame=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.55,0.04),M.monitor);
+  monFrame.position.set(0,1.5,-0.3);monFrame.castShadow=true;g.add(monFrame);
+  const screen=new THREE.Mesh(new THREE.BoxGeometry(0.73,0.47,0.01),M.screen);
+  screen.position.set(0,1.5,-0.28);g.add(screen);
+  const sGlow=new THREE.PointLight(0x3B82F6,0.3,2);sGlow.position.set(0,1.5,-0.2);g.add(sGlow);
+  const kb=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.02,0.15),M.silver);
+  kb.position.set(0,0.94,0.15);g.add(kb);
+  const mouse=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.025,0.1),new THREE.MeshStandardMaterial({color:0x374151,roughness:0.5}));
+  mouse.position.set(0.35,0.94,0.15);g.add(mouse);
   return g;
 }
 
-// ===== 创建椅子 =====
 function createChair(bandColor){
   const g=new THREE.Group();
-  // 坐垫
-  const seat=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.06,0.45),M.chair);
-  seat.position.y=0.5;g.add(seat);
-  // 靠背
-  const back=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.5,0.05),M.chair);
-  back.position.set(0,0.78,-0.2);back.rotation.x=0.1;g.add(back);
-  // 靠背上的彩色条
-  const band=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.06,0.06),collarMat(bandColor));
-  band.position.set(0,0.75,-0.18);g.add(band);
-  // 支柱
-  const post=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.03,0.4,6),M.silver);
-  post.position.set(0,0.28,0);g.add(post);
-  // 底座
+  const seat=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.08,0.55),M.chair);
+  seat.position.y=0.6;g.add(seat);
+  const back=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.65,0.06),M.chair);
+  back.position.set(0,0.95,-0.25);back.rotation.x=0.08;g.add(back);
+  const band=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.08,0.07),collarMat(bandColor));
+  band.position.set(0,0.9,-0.23);g.add(band);
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.04,0.5,6),M.silver);
+  post.position.set(0,0.32,0);g.add(post);
   for(let i=0;i<5;i++){
     const a=i*Math.PI*2/5;
-    const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.25,4),M.silver);
-    arm.position.set(Math.cos(a)*0.15,0.06,Math.sin(a)*0.15);
-    arm.rotation.z=Math.PI/2;arm.rotation.y=-a;g.add(arm);
-    const wheel=new THREE.Mesh(new THREE.SphereGeometry(0.02,5,5),M.black);
-    wheel.position.set(Math.cos(a)*0.25,0.04,Math.sin(a)*0.25);g.add(wheel);
+    const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.3,4),M.silver);
+    arm.position.set(Math.cos(a)*0.18,0.07,Math.sin(a)*0.18);arm.rotation.z=Math.PI/2;arm.rotation.y=-a;g.add(arm);
+    const wheel=new THREE.Mesh(new THREE.SphereGeometry(0.025,5,5),M.black);
+    wheel.position.set(Math.cos(a)*0.3,0.05,Math.sin(a)*0.3);g.add(wheel);
   }
   return g;
 }
 
-// ===== 咖啡区 =====
 function createCoffeeArea(){
   const g=new THREE.Group();
-  // 架子
-  const shelf1=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.04,0.5),M.silver);
-  shelf1.position.y=1.2;g.add(shelf1);
-  const shelf2=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.04,0.5),M.silver);
-  shelf2.position.y=0.7;g.add(shelf2);
-  // 侧板
-  [-0.58,0.58].forEach(x=>{
-    const side=new THREE.Mesh(new THREE.BoxGeometry(0.03,1.3,0.45),M.silver);
-    side.position.set(x,0.65,0);g.add(side);
-  });
-  // 咖啡机（上层）
-  const cmBody=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.3,0.3),M.silver);
-  cmBody.position.set(0,1.4,0);cmBody.castShadow=true;g.add(cmBody);
-  const cmTop=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,0.25),M.black);
-  cmTop.position.set(0,1.58,0);g.add(cmTop);
-  // 红色按钮
-  const btn=new THREE.Mesh(new THREE.SphereGeometry(0.025,6,6),
-    new THREE.MeshStandardMaterial({color:0xEF4444,emissive:0xEF4444,emissiveIntensity:0.5}));
-  btn.position.set(0.15,1.4,0.15);g.add(btn);
-  // 杯子（下层）
-  for(let i=0;i<4;i++){
-    const cup=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.035,0.1,8),M.white);
-    cup.position.set(-0.3+i*0.2,0.78,0);g.add(cup);
-    // 咖啡液面
-    const coffee=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.01,8),
-      new THREE.MeshStandardMaterial({color:0x8B5A2B}));
-    coffee.position.set(-0.3+i*0.2,0.82,0);g.add(coffee);
+  [-0.7,0.7].forEach(x=>{const s=new THREE.Mesh(new THREE.BoxGeometry(0.04,1.8,0.55),M.silver);s.position.set(x,0.9,0);g.add(s);});
+  [0.4,1.0,1.6].forEach(y=>{const s=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.05,0.55),M.silver);s.position.y=y;g.add(s);});
+  const cm=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.4,0.4),M.silver);cm.position.set(0,1.85,0);cm.castShadow=true;g.add(cm);
+  const ct=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.08,0.34),M.black);ct.position.set(0,2.1,0);g.add(ct);
+  const btn=new THREE.Mesh(new THREE.SphereGeometry(0.03,6,6),new THREE.MeshStandardMaterial({color:0xEF4444,emissive:0xEF4444,emissiveIntensity:0.6}));
+  btn.position.set(0.2,1.8,0.2);g.add(btn);
+  for(let row=0;row<2;row++) for(let i=0;i<4;i++){
+    const cup=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.04,0.12,8),M.white);
+    cup.position.set(-0.35+i*0.22,0.5+row*0.6+0.08,0);g.add(cup);
   }
   return g;
 }
 
-// ===== 健身区 =====
 function createGym(){
   const g=new THREE.Group();
-  // 跑步机底座
-  const base=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.08,1.2),M.silver);
-  base.position.y=0.15;g.add(base);
-  // 跑步带
-  const belt=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.03,1.0),M.black);
-  belt.position.y=0.2;g.add(belt);
-  // 扶手
-  [-0.3,0.3].forEach(x=>{
-    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.8,5),M.silver);
-    pole.position.set(x,0.55,-0.5);g.add(pole);
-  });
-  // 横杆
-  const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.65,5),M.silver);
-  bar.position.set(0,0.95,-0.5);bar.rotation.z=Math.PI/2;g.add(bar);
-  // 控制面板
-  const panel=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.12,0.05),M.black);
-  panel.position.set(0,1.0,-0.52);g.add(panel);
-  // 屏幕指示灯
-  const indicator=new THREE.Mesh(new THREE.SphereGeometry(0.015,5,5),
-    new THREE.MeshStandardMaterial({color:0x10B981,emissive:0x10B981,emissiveIntensity:0.8}));
-  indicator.position.set(0,1.02,-0.49);g.add(indicator);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.1,1.6),M.silver);base.position.y=0.18;g.add(base);
+  const belt=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.04,1.3),M.black);belt.position.y=0.24;g.add(belt);
+  [-0.4,0.4].forEach(x=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,1.0,5),M.silver);p.position.set(x,0.7,-0.65);g.add(p);});
+  const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.85,5),M.silver);bar.position.set(0,1.2,-0.65);bar.rotation.z=Math.PI/2;g.add(bar);
+  const panel=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.06),M.black);panel.position.set(0,1.28,-0.68);g.add(panel);
+  const ind=new THREE.Mesh(new THREE.SphereGeometry(0.02,5,5),new THREE.MeshStandardMaterial({color:0x10B981,emissive:0x10B981,emissiveIntensity:0.8}));
+  ind.position.set(0,1.3,-0.64);g.add(ind);
   return g;
 }
 
-// ===== 卫生间 =====
 function createWC(){
   const g=new THREE.Group();
-  // 隔间墙
-  const wall1=new THREE.Mesh(new THREE.BoxGeometry(0.04,1.6,0.9),M.desk);
-  wall1.position.set(-0.45,0.8,0);g.add(wall1);
-  const wall2=new THREE.Mesh(new THREE.BoxGeometry(0.04,1.6,0.9),M.desk);
-  wall2.position.set(0.45,0.8,0);g.add(wall2);
-  const wall3=new THREE.Mesh(new THREE.BoxGeometry(0.94,1.6,0.04),M.desk);
-  wall3.position.set(0,0.8,-0.43);g.add(wall3);
-  // 门
-  const door=new THREE.Mesh(new THREE.BoxGeometry(0.5,1.3,0.03),M.white);
-  door.position.set(0.15,0.65,0.42);g.add(door);
-  // 门把手
-  const handle=new THREE.Mesh(new THREE.SphereGeometry(0.02,5,5),M.silver);
-  handle.position.set(0.32,0.65,0.44);g.add(handle);
-  // 马桶水箱 - 黑色
-  const tank=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.25,0.15),M.black);
-  tank.position.set(0,0.85,-0.3);g.add(tank);
-  // 冲水按钮
-  const flushBtn=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.02,6),M.silver);
-  flushBtn.position.set(0,0.98,-0.3);g.add(flushBtn);
-  // 马桶底座 - 黑色
-  const toiletBase=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.3,0.4),M.black);
-  toiletBase.position.set(0,0.15,-0.1);g.add(toiletBase);
-  // 马桶圈 - 深灰坐垫
-  const seat=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.04,0.38),
-    new THREE.MeshStandardMaterial({color:0x374151,roughness:0.8}));
-  seat.position.set(0,0.32,-0.1);g.add(seat);
-  // 马桶盖 - 半开
-  const lid=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.03,0.35),
-    new THREE.MeshStandardMaterial({color:0x1F2937,roughness:0.7}));
-  lid.position.set(0,0.55,-0.1);lid.rotation.x=-0.5;g.add(lid);
+  [[-0.55,0],[0.55,0]].forEach(([x])=>{const w=new THREE.Mesh(new THREE.BoxGeometry(0.06,2.0,1.1),M.desk);w.position.set(x,1.0,0);g.add(w);});
+  const bw=new THREE.Mesh(new THREE.BoxGeometry(1.16,2.0,0.06),M.desk);bw.position.set(0,1.0,-0.52);g.add(bw);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(0.6,1.6,0.04),M.white);door.position.set(0.18,0.8,0.52);g.add(door);
+  const tank=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.3,0.2),M.black);tank.position.set(0,1.05,-0.35);g.add(tank);
+  const flBtn=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.03,6),M.silver);flBtn.position.set(0,1.22,-0.35);g.add(flBtn);
+  const tBase=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.35,0.5),M.black);tBase.position.set(0,0.18,-0.15);g.add(tBase);
+  const seat=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.05,0.45),new THREE.MeshStandardMaterial({color:0x374151,roughness:0.8}));
+  seat.position.set(0,0.38,-0.12);g.add(seat);
+  const lid=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.04,0.42),new THREE.MeshStandardMaterial({color:0x1F2937,roughness:0.7}));
+  lid.position.set(0,0.68,-0.1);lid.rotation.x=-0.6;g.add(lid);
   return g;
 }
 
-// ===== 浮动粒子 =====
-function createParticles(){
-  const count=80;
-  const geo=new THREE.BufferGeometry();
-  const pos=new Float32Array(count*3);
-  for(let i=0;i<count;i++){
-    pos[i*3]=(Math.random()-0.5)*20;
-    pos[i*3+1]=Math.random()*6;
-    pos[i*3+2]=(Math.random()-0.5)*16;
-  }
-  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  const mat=new THREE.PointsMaterial({color:0x7C3AED,size:0.03,transparent:true,opacity:0.4});
-  return new THREE.Points(geo,mat);
-}
-const particles=createParticles();scene.add(particles);
+// ===== 粒子 =====
+const pCount=100;
+const pGeo=new THREE.BufferGeometry();
+const pPos=new Float32Array(pCount*3);
+for(let i=0;i<pCount;i++){pPos[i*3]=(Math.random()-0.5)*24;pPos[i*3+1]=Math.random()*7;pPos[i*3+2]=(Math.random()-0.5)*18;}
+pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const particles=new THREE.Points(pGeo,new THREE.PointsMaterial({color:0x7C3AED,size:0.04,transparent:true,opacity:0.3}));
+scene.add(particles);
+
+// ===== 碰撞障碍物定义 =====
+// 格式: {x, z, hw, hd} 中心和半宽半深
+const obstacles=[];
 
 // ===== 放置场景 =====
-// 6个Agent
 const agentData=[
   {id:'pm',  band:0xEF4444,name:'PM'},
   {id:'file',band:0x3B82F6,name:'File'},
@@ -320,59 +290,141 @@ const agentData=[
   {id:'srch',band:0x06B6D4,name:'Search'},
 ];
 
-// 工位布局：2行3列
 const deskPos=[
-  {x:-2.5,z:-2},{x:0,z:-2},{x:2.5,z:-2},
-  {x:-2.5,z:2},{x:0,z:2},{x:2.5,z:2}
+  {x:-3.2,z:-2.5},{x:0,z:-2.5},{x:3.2,z:-2.5},
+  {x:-3.2,z:2.5},{x:0,z:2.5},{x:3.2,z:2.5}
 ];
 
 const lobsters=[];
 deskPos.forEach((dp,i)=>{
   const ad=agentData[i];
-  // 工位
-  const desk=createDesk();desk.position.set(dp.x,0,dp.z-0.3);scene.add(desk);
-  // 椅子
-  const chair=createChair(ad.band);chair.position.set(dp.x,0,dp.z+0.3);scene.add(chair);
-  // 龙虾（坐在椅子上，面朝显示器/-z方向）
+  const desk=createDesk();desk.position.set(dp.x,0,dp.z-0.5);scene.add(desk);
+  const chair=createChair(ad.band);chair.position.set(dp.x,0,dp.z+0.4);scene.add(chair);
   const lob=createLobster(ad.band);
-  lob.position.set(dp.x,0,dp.z+0.1);
-  lob.rotation.y=Math.PI; // 面朝-z（显示器方向）
+  lob.position.set(dp.x,0,dp.z+0.2);
+  lob.rotation.y=Math.PI;
   scene.add(lob);
   lobsters.push({
     mesh:lob,desk,chair,
-    homeX:dp.x,homeZ:dp.z+0.1,
-    x:dp.x,z:dp.z+0.1,
+    homeX:dp.x,homeZ:dp.z+0.2,
+    x:dp.x,z:dp.z+0.2,
     state:'sit',band:ad.band,name:ad.name,
-    targetX:dp.x,targetZ:dp.z+0.1,
+    targetX:dp.x,targetZ:dp.z+0.2,
     moving:false,arriveAction:null,
     actionTimer:6000+Math.random()*10000,
     bobPhase:Math.random()*6.28,
     blinkTimer:2000+Math.random()*3000,
-    isBlinking:false
+    isBlinking:false,
+    path:[],pathIdx:0
   });
-  // 每个工位旁边加小灯
-  const deskLight=new THREE.PointLight(ad.band,0.15,3);
-  deskLight.position.set(dp.x,1.5,dp.z);scene.add(deskLight);
+  const dl=new THREE.PointLight(ad.band,0.12,4);dl.position.set(dp.x,2,dp.z);scene.add(dl);
+  // 注册障碍物：桌面区域
+  obstacles.push({x:dp.x,z:dp.z-0.1,hw:1.1,hd:0.7}); // 桌子
+  obstacles.push({x:dp.x,z:dp.z+0.4,hw:0.4,hd:0.4}); // 椅子
 });
 
-// 功能区
-const coffeeArea=createCoffeeArea();coffeeArea.position.set(-5,0,-1);scene.add(coffeeArea);
-const gymArea=createGym();gymArea.position.set(5,0,0);scene.add(gymArea);
-const wcArea=createWC();wcArea.position.set(-5,0,3.5);scene.add(wcArea);
+const coffeeArea=createCoffeeArea();coffeeArea.position.set(-6.5,0,-1);scene.add(coffeeArea);
+const gymArea=createGym();gymArea.position.set(6.5,0,0);scene.add(gymArea);
+const wcArea=createWC();wcArea.position.set(-6.5,0,4);scene.add(wcArea);
+obstacles.push({x:-6.5,z:-1,hw:1.0,hd:0.5}); // 咖啡架
+obstacles.push({x:6.5,z:0,hw:0.6,hd:1.0});   // 跑步机
+obstacles.push({x:-6.5,z:4,hw:0.7,hd:0.7});   // 卫生间
 
-// 功能区灯光
-const coffeeLight=new THREE.PointLight(0xF59E0B,0.2,4);coffeeLight.position.set(-5,2,-1);scene.add(coffeeLight);
-const gymLight=new THREE.PointLight(0x10B981,0.2,4);gymLight.position.set(5,2,0);scene.add(gymLight);
+const coffeeLight=new THREE.PointLight(0xF59E0B,0.25,5);coffeeLight.position.set(-6.5,2.5,-1);scene.add(coffeeLight);
+const gymLight=new THREE.PointLight(0x10B981,0.25,5);gymLight.position.set(6.5,2,0);scene.add(gymLight);
 
-// ===== 触摸控制 =====
-let camAngle=0,camDist=12,camH=8;
-let touchX=0,touchAngle=0;
-renderer.domElement.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX;touchAngle=camAngle;},{passive:true});
+// ===== 碰撞检测 =====
+const LOBSTER_R=0.35; // 龙虾碰撞半径
+
+function isBlocked(px,pz){
+  for(const o of obstacles){
+    if(Math.abs(px-o.x)<o.hw+LOBSTER_R && Math.abs(pz-o.z)<o.hd+LOBSTER_R) return true;
+  }
+  // 边界
+  if(px<-8||px>8||pz<-6||pz>6) return true;
+  return false;
+}
+
+// 简易A*寻路
+function findPath(sx,sz,tx,tz){
+  // 如果目标点在障碍物里，找最近的可达点
+  let etx=tx,etz=tz;
+  if(isBlocked(tx,tz)){
+    // 向外扩展搜索
+    for(let r=0.5;r<3;r+=0.5){
+      for(let a=0;a<6.28;a+=0.5){
+        const cx=tx+Math.cos(a)*r,cz=tz+Math.sin(a)*r;
+        if(!isBlocked(cx,cz)){etx=cx;etz=cz;r=99;break;}
+      }
+    }
+  }
+  
+  // 简化：用waypoint方式，先走到通道再走向目标
+  const path=[];
+  const dx=etx-sx,dz=etz-sz;
+  const dist=Math.sqrt(dx*dx+dz*dz);
+  if(dist<0.5){path.push({x:etx,z:etz});return path;}
+  
+  // 尝试直走
+  const steps=Math.ceil(dist/0.5);
+  let blocked=false;
+  for(let i=1;i<=steps;i++){
+    const t=i/steps;
+    const px=sx+dx*t,pz=sz+dz*t;
+    if(isBlocked(px,pz)){blocked=true;break;}
+  }
+  
+  if(!blocked){
+    path.push({x:etx,z:etz});
+    return path;
+  }
+  
+  // 被挡了，绕路：先走到通道z=0（中间过道），再走向目标
+  // 通道z坐标：前排z=0附近，后排也在中间有空隙
+  const midZ=0; // 中间过道
+  
+  // 第一步：走到过道
+  if(!isBlocked(sx,midZ)){
+    path.push({x:sx,z:midZ});
+  } else {
+    // 找最近的过道点
+    for(let off=-3;off<=3;off+=0.5){
+      if(!isBlocked(sx+off,midZ)){path.push({x:sx+off,z:midZ});break;}
+    }
+  }
+  
+  // 第二步：沿过道走到目标x
+  if(path.length>0){
+    const lastP=path[path.length-1];
+    if(!isBlocked(etx,midZ)){
+      path.push({x:etx,z:midZ});
+    } else {
+      for(let off=-3;off<=3;off+=0.5){
+        if(!isBlocked(etx+off,midZ)){path.push({x:etx+off,z:midZ});break;}
+      }
+    }
+  }
+  
+  // 第三步：走向目标
+  path.push({x:etx,z:etz});
+  
+  // 过滤掉被挡的路径点
+  return path.filter(p=>!isBlocked(p.x,p.z));
+}
+
+// ===== 触摸 =====
+let camAngle=0,camDist=11,camH=7;
+let tStartX=0,tStartAngle=0,tStartY=0,tStartH=0;
+renderer.domElement.addEventListener('touchstart',e=>{
+  tStartX=e.touches[0].clientX;tStartY=e.touches[0].clientY;
+  tStartAngle=camAngle;tStartH=camH;
+},{passive:true});
 renderer.domElement.addEventListener('touchmove',e=>{
-  camAngle=touchAngle+(e.touches[0].clientX-touchX)*0.005;
+  camAngle=tStartAngle+(e.touches[0].clientX-tStartX)*0.004;
+  camH=Math.max(3,Math.min(12,tStartH-(e.touches[0].clientY-tStartY)*0.02));
 },{passive:true});
 
-// ===== AI行为 =====
+// ===== AI =====
 let lastAI=0;
 function aiTick(t){
   if(t-lastAI<5000)return;lastAI=t;
@@ -380,101 +432,110 @@ function aiTick(t){
   if(!idle.length)return;
   const l=idle[(Math.random()*idle.length)|0];
   const r=Math.random();
-  if(r<0.3){l.state='sit';l.actionTimer=8000+Math.random()*12000;}
-  else if(r<0.42){moveTo(l,-5,-1,'coffee');}
-  else if(r<0.54){moveTo(l,5,0,'exercise');}
-  else if(r<0.64){moveTo(l,-5,3.5,'toilet');}
+  if(r<0.30){l.state='sit';l.actionTimer=8000+Math.random()*12000;}
+  else if(r<0.42){startMove(l,-6.5,-1,'coffee');}
+  else if(r<0.54){startMove(l,6.5,0,'exercise');}
+  else if(r<0.64){startMove(l,-6.5,4,'toilet');}
   else if(r<0.74){l.state='sleep';l.actionTimer=5000+Math.random()*5000;}
   else if(r<0.84){l.state='sit';l.actionTimer=6000+Math.random()*8000;}
   else{l.state='sit';l.actionTimer=10000+Math.random()*10000;}
 }
-function moveTo(l,tx,tz,act){
-  l.targetX=tx;l.targetZ=tz;l.moving=true;l.state='walk';
-  l.arriveAction=act;
+
+function startMove(l,tx,tz,act){
+  const path=findPath(l.x,l.z,tx,tz);
+  if(path.length===0)return;
+  l.path=path;l.pathIdx=0;
+  l.targetX=path[0].x;l.targetZ=path[0].z;
+  l.moving=true;l.state='walk';l.arriveAction=act;
 }
+
 function goHome(l){
-  l.targetX=l.homeX;l.targetZ=l.homeZ;l.moving=true;l.state='walk';
-  l.arriveAction='sit';l.actionTimer=8000+Math.random()*10000;
+  const path=findPath(l.x,l.z,l.homeX,l.homeZ);
+  if(path.length===0)return;
+  l.path=path;l.pathIdx=0;
+  l.targetX=path[0].x;l.targetZ=path[0].z;
+  l.moving=true;l.state='walk';l.arriveAction='sit';
+  l.actionTimer=8000+Math.random()*10000;
 }
 
 // ===== 更新 =====
 function update(dt,t){
   lobsters.forEach(l=>{
     const m=l.mesh;
-    // 眨眼
     l.blinkTimer-=dt;
     if(l.blinkTimer<=0){l.isBlinking=!l.isBlinking;l.blinkTimer=l.isBlinking?100:2000+Math.random()*3000;}
-    // 行动计时
     if(l.actionTimer>0&&!l.moving){l.actionTimer-=dt;if(l.actionTimer<=0)goHome(l);}
-
+    
     if(l.state==='sit'){
-      // 坐着打字动画
-      const bob=Math.sin(t*0.003+l.bobPhase)*0.02;
-      m.position.y=bob;
-      m.rotation.y=Math.PI; // 面朝显示器
-      // 打字动画
-      const typeA=Math.sin(t*0.008+l.bobPhase)*0.15;
-      m.userData.lArm.rotation.x=typeA;
-      m.userData.rArm.rotation.x=-typeA;
-      m.userData.head.rotation.y=Math.sin(t*0.001)*0.05;
-      // 眨眼 - 缩放眼睛
-      const ey=l.isBlinking?0.1:1;
-      // 找到眼睛mesh并缩放
-      m.children.forEach(c=>{
-        if(c.material===M.eyeW) c.scale.y=ey;
-      });
+      const bob=Math.sin(t*0.003+l.bobPhase)*0.025;
+      m.position.y=bob;m.rotation.y=Math.PI;
+      const typeA=Math.sin(t*0.008+l.bobPhase)*0.18;
+      m.userData.lClawG.rotation.x=typeA;
+      m.userData.rClawG.rotation.x=-typeA;
+      m.userData.head.rotation.y=Math.sin(t*0.001)*0.06;
+      m.children.forEach(c=>{if(c.material===M.eyeW)c.scale.y=l.isBlinking?0.1:1;});
     } else if(l.state==='walk'){
-      // 走路
       const dx=l.targetX-l.x,dz=l.targetZ-l.z;
       const dist=Math.sqrt(dx*dx+dz*dz);
+      
       if(dist<0.15){
         l.x=l.targetX;l.z=l.targetZ;
         m.position.x=l.x;m.position.z=l.z;
-        l.moving=false;
-        if(l.arriveAction){
-          l.state=l.arriveAction;l.arriveAction=null;
-          l.actionTimer=5000+Math.random()*5000;
-          if(l.state==='sit') m.rotation.y=Math.PI;
+        
+        // 检查是否到达路径中间点，继续下一个
+        l.pathIdx++;
+        if(l.pathIdx<l.path.length){
+          l.targetX=l.path[l.pathIdx].x;
+          l.targetZ=l.path[l.pathIdx].z;
+        } else {
+          // 到达最终目标
+          l.moving=false;
+          if(l.arriveAction){
+            l.state=l.arriveAction;l.arriveAction=null;
+            l.actionTimer=5000+Math.random()*5000;
+            if(l.state==='sit')m.rotation.y=Math.PI;
+          }
         }
         return;
       }
-      const spd=0.02;
-      l.x+=dx/dist*spd;l.z+=dz/dist*spd;
+      
+      const spd=0.025;
+      const nx=dx/dist*spd;
+      const nz=dz/dist*spd;
+      
+      // 碰撞检测：下一步是否撞到东西
+      const nextX=l.x+nx,nextZ=l.z+nz;
+      if(!isBlocked(nextX,nextZ)){
+        l.x=nextX;l.z=nextZ;
+      } else {
+        // 尝试只走x或只走z
+        if(!isBlocked(l.x+nx,l.z)){l.x+=nx;}
+        else if(!isBlocked(l.x,l.z+nz)){l.z+=nz;}
+        // 都被挡就不动，等下一帧
+      }
+      
       m.position.x=l.x;m.position.z=l.z;
-      // 面朝移动方向
       m.rotation.y=Math.atan2(dx,dz);
-      // 走路摇摆
-      const walkBob=Math.sin(t*0.012)*0.03;
-      m.position.y=walkBob;
-      m.userData.lArm.rotation.x=Math.sin(t*0.012)*0.4;
-      m.userData.rArm.rotation.x=-Math.sin(t*0.012)*0.4;
+      m.position.y=Math.sin(t*0.012)*0.04;
+      m.userData.lClawG.rotation.x=Math.sin(t*0.012)*0.4;
+      m.userData.rClawG.rotation.x=-Math.sin(t*0.012)*0.4;
     } else if(l.state==='sleep'){
-      // 趴桌打盹
-      m.rotation.y=Math.PI;
-      m.userData.head.rotation.x=0.3;
-      m.position.y=-0.05+Math.sin(t*0.002)*0.01;
-      m.userData.lArm.rotation.x=0.5;
-      m.userData.rArm.rotation.x=0.5;
+      m.rotation.y=Math.PI;m.userData.head.rotation.x=0.35;
+      m.position.y=-0.08+Math.sin(t*0.002)*0.015;
+      m.userData.lClawG.rotation.x=0.5;m.userData.rClawG.rotation.x=0.5;
     } else if(l.state==='coffee'||l.state==='exercise'){
-      // 喝咖啡/健身 - 站立idle
-      m.position.y=Math.sin(t*0.004+l.bobPhase)*0.02;
-      m.userData.lArm.rotation.x=Math.sin(t*0.005)*0.2;
-      m.userData.rArm.rotation.x=Math.sin(t*0.005+1)*0.2;
-      m.userData.head.rotation.x=Math.sin(t*0.002)*0.05;
+      m.position.y=Math.sin(t*0.004+l.bobPhase)*0.025;
+      m.userData.lClawG.rotation.x=Math.sin(t*0.005)*0.25;
+      m.userData.rClawG.rotation.x=Math.sin(t*0.005+1)*0.25;
+      m.userData.head.rotation.x=Math.sin(t*0.002)*0.06;
     } else if(l.state==='toilet'){
-      // 上厕所 - 隐藏龙虾
       m.visible=false;
     }
-    // 非toilet状态恢复可见
-    if(l.state!=='toilet') m.visible=true;
+    if(l.state!=='toilet')m.visible=true;
   });
-
-  // 粒子动画
-  const pPos=particles.geometry.attributes.position.array;
-  for(let i=0;i<pPos.length;i+=3){
-    pPos[i+1]+=0.002;
-    if(pPos[i+1]>6) pPos[i+1]=0;
-  }
+  
+  const pp=particles.geometry.attributes.position.array;
+  for(let i=0;i<pp.length;i+=3){pp[i+1]+=0.002;if(pp[i+1]>7)pp[i+1]=0;}
   particles.geometry.attributes.position.needsUpdate=true;
 }
 
@@ -483,30 +544,17 @@ let lastT=0;
 function loop(t){
   requestAnimationFrame(loop);
   const dt=lastT?t-lastT:16;lastT=t;
-  
-  update(dt,t);
-  aiTick(t);
-  
-  // 相机轨道
+  update(dt,t);aiTick(t);
   camera.position.x=Math.sin(camAngle)*camDist;
   camera.position.z=Math.cos(camAngle)*camDist;
   camera.position.y=camH;
-  camera.lookAt(0,0.5,0);
-  
-  // 氛围灯微动
-  pLight1.intensity=0.5+Math.sin(t*0.001)*0.15;
-  pLight2.intensity=0.35+Math.sin(t*0.0013)*0.1;
-  
+  camera.lookAt(0,1,0);
+  pLight1.intensity=0.6+Math.sin(t*0.001)*0.15;
+  pLight2.intensity=0.4+Math.sin(t*0.0013)*0.1;
   renderer.render(scene,camera);
 }
 loop(0);
-
-// 窗口大小变化
-window.addEventListener('resize',()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
-});
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
 }
 </script>
 </body>
