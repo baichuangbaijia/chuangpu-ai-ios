@@ -1,0 +1,6 @@
+# 构建产物与归档（不进版本库）
+*.ipa
+*.zip
+build_output/
+releases/
+*_extracted/
