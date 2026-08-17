@@ -3,14 +3,15 @@ import Foundation
 // MARK: - 用户信息
 struct User: Codable, Identifiable {
     let id: Int
-    let name: String
+    let name: String?
+    let username: String?
     let nickname: String?
     let phone: String?
     let avatar: String?
     let vipLevel: String?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, nickname, phone, avatar
+        case id, name, username, nickname, phone, avatar
         case vipLevel = "vip_level"
     }
 }

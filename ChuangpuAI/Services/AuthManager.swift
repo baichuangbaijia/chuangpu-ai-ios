@@ -63,7 +63,7 @@ class AuthManager: ObservableObject {
             
             if let user = data.user {
                 UserDefaults.standard.set(user.id, forKey: Constants.userIdKey)
-                UserDefaults.standard.set(user.name, forKey: Constants.userNameKey)
+                UserDefaults.standard.set(user.name ?? user.nickname ?? "", forKey: Constants.userNameKey)
                 UserDefaults.standard.set(user.nickname, forKey: Constants.userNicknameKey)
                 self.currentUser = user
                 self.isVip = user.vipLevel != "free" && user.vipLevel != nil
@@ -93,7 +93,7 @@ class AuthManager: ObservableObject {
             
             if let user = data.user {
                 UserDefaults.standard.set(user.id, forKey: Constants.userIdKey)
-                UserDefaults.standard.set(user.name, forKey: Constants.userNameKey)
+                UserDefaults.standard.set(user.name ?? user.nickname ?? "", forKey: Constants.userNameKey)
                 UserDefaults.standard.set(user.nickname, forKey: Constants.userNicknameKey)
                 self.currentUser = user
             }
