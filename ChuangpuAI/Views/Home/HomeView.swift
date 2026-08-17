@@ -16,6 +16,7 @@ struct HomeView: View {
                 lobsterOffice
                 Spacer(minLength: 4)
                 quickSkillsArea
+                platformArea
                 Spacer(minLength: 4)
                 startYangXiaBtn
                 Spacer()
@@ -86,27 +87,79 @@ struct HomeView: View {
     }
     
     private var startYangXiaBtn: some View {
-        Button(action: {}) {
-            HStack(spacing: 10) {
-                Image(systemName: "message.fill").font(.system(size: 18))
-                Text("开始养虾").font(.system(size: 16, weight: .bold))
+        VStack(spacing: 10) {
+            Button(action: {}) {
+                HStack(spacing: 10) {
+                    Image(systemName: "message.fill").font(.system(size: 18))
+                    Text("开始养虾").font(.system(size: 16, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity).frame(height: 48)
+                .background(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing))
+                .cornerRadius(24)
+                .shadow(color: Constants.primaryPurple.opacity(glowPhase), radius: 14, x: 0, y: 4)
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity).frame(height: 48)
-            .background(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing))
-            .cornerRadius(24)
-            .shadow(color: Constants.primaryPurple.opacity(glowPhase), radius: 14, x: 0, y: 4)
+            Text("7×24小时帮你干活的全场景私人助理")
+                .font(.system(size: 12))
+                .foregroundColor(Constants.textSecondary)
         }.padding(.horizontal, 32)
     }
     
+    // 聊天平台接入区（对照安卓：微信/企微/飞书/钉钉）
+    private var platformArea: some View {
+        VStack(spacing: 8) {
+            Text("聊天平台接入").font(.system(size: 11)).foregroundColor(Constants.textSecondary)
+            HStack(spacing: 28) {
+                platformIcon(icon: "message.fill", name: "微信", color: Constants.accentGreen)
+                platformIcon(icon: "building.2.fill", name: "企业微信", color: Constants.accentBlue)
+                platformIcon(icon: "paperplane.fill", name: "飞书", color: Constants.accentBlue)
+                platformIcon(icon: "bell.fill", name: "钉钉", color: Constants.primaryPurple)
+            }
+        }
+    }
+    
+    private func platformIcon(icon: String, name: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle().fill(color.opacity(0.15)).frame(width: 36, height: 36)
+                Image(systemName: icon).font(.system(size: 16)).foregroundColor(color)
+            }
+            Text(name).font(.system(size: 10)).foregroundColor(Constants.textSecondary)
+        }
+    }
+    
     private var bottomInputBar: some View {
-        HStack(spacing: 12) {
-            Button(action: {}) { Image(systemName: "calendar.badge.clock").font(.system(size: 22)).foregroundColor(Constants.primaryPurple) }
-            TextField("输入消息...", text: $inputText).font(.system(size: 16)).foregroundColor(.white).padding(.horizontal, 16).padding(.vertical, 12).background(Constants.bgTertiary).cornerRadius(24)
-            Button(action: {}) {
-                Image(systemName: "arrow.up.circle.fill").font(.system(size: 36)).foregroundStyle(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .topLeading, endPoint: .bottomTrailing))
-            }.disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
-        }.padding(.horizontal, 16).padding(.vertical, 14).background(Constants.bgSecondary)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Button(action: {}) { Image(systemName: "calendar.badge.clock").font(.system(size: 22)).foregroundColor(Constants.primaryPurple) }
+                TextField("分配一个任务或提问任何问题", text: $inputText).font(.system(size: 16)).foregroundColor(.white).padding(.horizontal, 16).padding(.vertical, 12).background(Constants.bgTertiary).cornerRadius(24)
+                Button(action: {}) {
+                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 36)).foregroundStyle(Constants.accentOrange)
+                }.disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
+            }
+            HStack(spacing: 12) {
+                Button(action: {}) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar").font(.system(size: 10))
+                        Text("定时任务").font(.system(size: 11))
+                    }
+                    .foregroundColor(Constants.accentOrange)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Constants.accentOrange.opacity(0.15))
+                    .cornerRadius(12)
+                }
+                Button(action: { showModelSelector = true }) {
+                    HStack(spacing: 4) {
+                        Circle().fill(Constants.accentGreen).frame(width: 5, height: 5)
+                        Text(getModelName(currentModel)).font(.system(size: 11))
+                    }
+                    .foregroundColor(Constants.textSecondary)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Constants.bgTertiary)
+                    .cornerRadius(12)
+                }
+            }
+        }.padding(.horizontal, 16).padding(.vertical, 10).background(Constants.bgSecondary)
     }
     
     private func startAnimations() {
