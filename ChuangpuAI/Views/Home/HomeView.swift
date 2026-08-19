@@ -16,7 +16,6 @@ struct HomeView: View {
     @State private var glowPhase: Double = 0.4
     @FocusState private var inputFocused: Bool
     @State private var messages: [ChatMessage] = []
-    @State private var keyboardHeight: CGFloat = 0
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -25,14 +24,17 @@ struct HomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-            // GeometryReader 获取可视高度，内容区撑满屏幕；聊天框以下沉底
-            GeometryReader { geo in
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: itemSpacing) {
-                        if inputFocused {
-                            chatHistoryArea(height: max(geo.size.height - keyboardHeight - 128, 100))
-                            inputBar
-                        } else {
+            if inputFocused {
+                // 聊天模式：大厂原生结构（微信同款）——聊天区占满，输入栏 safeAreaInset 系统原生自动贴键盘
+                chatHistoryArea
+                    .safeAreaInset(edge: .bottom, spacing: 0) { inputBar }
+                    .scrollDismissesKeyboard(.interactively)
+                    .onTapGesture { inputFocused = false }
+            } else {
+                // 首页模式：保持安卓对齐布局，整页锁死一屏
+                GeometryReader { geo in
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: itemSpacing) {
                             lobsterHero
                             startYangXiaBtn
                             Spacer(minLength: itemSpacing)
@@ -40,30 +42,21 @@ struct HomeView: View {
                             quickSkillsArea
                             platformArea
                         }
+                        .padding(.horizontal, hPadding)
+                        .padding(.top, 4)
+                        .padding(.bottom, 16)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: geo.size.height)
                     }
-                    .padding(.horizontal, hPadding)
-                    .padding(.top, 4)
-                    .padding(.bottom, 16)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: geo.size.height - (inputFocused ? keyboardHeight : 0))
+                    .scrollDismissesKeyboard(.immediately)
                 }
-                .scrollDismissesKeyboard(.immediately)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Constants.bgPrimary.ignoresSafeArea())
-        .onTapGesture { if inputFocused { inputFocused = false } }
         .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
-            if let rect = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = rect.height }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
-        }
     }
 
     // 导航栏：只留汉堡（对照安卓，无标题无模型标签）
@@ -228,8 +221,8 @@ struct HomeView: View {
         }
     }
 
-    // 聊天记录区（输入框聚焦时显示，占可视区 42%）
-    private func chatHistoryArea(height: CGFloat) -> some View {
+    // 聊天记录区（聚焦时显示，自动占满输入栏上方空间，独立滚动）
+    private var chatHistoryArea: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 10) {
@@ -239,8 +232,6 @@ struct HomeView: View {
                 }
                 .padding(.vertical, 4)
             }
-            .scrollDismissesKeyboard(.never)
-            .frame(height: height)
             .onChange(of: messages.count) { _ in
                 if let last = messages.last {
                     withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(last.id, anchor: .bottom) }
