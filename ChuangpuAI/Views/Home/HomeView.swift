@@ -16,6 +16,7 @@ struct HomeView: View {
     @State private var glowPhase: Double = 0.4
     @FocusState private var inputFocused: Bool
     @State private var messages: [ChatMessage] = []
+    @State private var keyboardHeight: CGFloat = 0
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -28,15 +29,14 @@ struct HomeView: View {
             GeometryReader { geo in
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: itemSpacing) {
-                        lobsterHero
-                        startYangXiaBtn
                         if inputFocused {
-                            chatHistoryArea(height: max(geo.size.height * 0.38, 140))
+                            chatHistoryArea(height: max(geo.size.height - keyboardHeight - 128, 100))
+                            inputBar
                         } else {
+                            lobsterHero
+                            startYangXiaBtn
                             Spacer(minLength: itemSpacing)
-                        }
-                        inputBar
-                        if !inputFocused {
+                            inputBar
                             quickSkillsArea
                             platformArea
                         }
@@ -45,7 +45,7 @@ struct HomeView: View {
                     .padding(.top, 4)
                     .padding(.bottom, 16)
                     .frame(maxWidth: .infinity)
-                    .frame(minHeight: geo.size.height)
+                    .frame(minHeight: geo.size.height - (inputFocused ? keyboardHeight : 0))
                 }
                 .scrollDismissesKeyboard(.immediately)
             }
@@ -56,6 +56,14 @@ struct HomeView: View {
         .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+            if let rect = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = rect.height }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) { keyboardHeight = 0 }
+        }
     }
 
     // 导航栏：只留汉堡（对照安卓，无标题无模型标签）
@@ -231,7 +239,7 @@ struct HomeView: View {
                 }
                 .padding(.vertical, 4)
             }
-            .scrollDismissesKeyboard(.immediately)
+            .scrollDismissesKeyboard(.never)
             .frame(height: height)
             .onChange(of: messages.count) { _ in
                 if let last = messages.last {
