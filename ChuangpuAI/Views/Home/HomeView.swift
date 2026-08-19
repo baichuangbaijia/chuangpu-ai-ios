@@ -14,30 +14,29 @@ struct HomeView: View {
     private let itemSpacing: CGFloat = 12
 
     var body: some View {
-        ZStack {
-            Constants.bgPrimary.ignoresSafeArea()
-            VStack(spacing: 0) {
-                topBar
-                // GeometryReader 获取可视高度，内容区撑满屏幕；聊天框以下沉底
-                GeometryReader { geo in
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: itemSpacing) {
-                            lobsterHero
-                            startYangXiaBtn
-                            inputBar
-                            Spacer(minLength: itemSpacing)
-                            quickSkillsArea
-                            platformArea
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: geo.size.height)
-                        .padding(.horizontal, hPadding)
-                        .padding(.top, 4)
-                        .padding(.bottom, 16)
+        VStack(spacing: 0) {
+            topBar
+            // GeometryReader 获取可视高度，内容区撑满屏幕；聊天框以下沉底
+            GeometryReader { geo in
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: itemSpacing) {
+                        lobsterHero
+                        startYangXiaBtn
+                        Spacer(minLength: itemSpacing)
+                        inputBar
+                        quickSkillsArea
+                        platformArea
                     }
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: geo.size.height)
+                    .padding(.horizontal, hPadding)
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Constants.bgPrimary.ignoresSafeArea())
         .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
@@ -143,7 +142,7 @@ struct HomeView: View {
 
     // 快捷按钮 6 个：3 列自动等分撑满整行，高度按屏宽比例自适应
     private var quickSkillsArea: some View {
-        let btnH = (UIScreen.main.bounds.width - 48) / 3 * 0.45
+        let btnH = (UIScreen.main.bounds.width - 48) / 3 * 0.55
         return VStack(spacing: 8) {
             HStack(spacing: 8) {
                 skillBtn(icon: "tablecells", title: "创建表格", bg: Constants.primaryPurple, gradient: false, h: btnH)
@@ -185,16 +184,11 @@ struct HomeView: View {
     private var platformArea: some View {
         VStack(spacing: 8) {
             Text("支持聊天平台接入").font(.system(size: 11)).foregroundColor(Constants.textSecondary)
-            HStack(spacing: 0) {
-                Spacer()
-                platformIcon(icon: "message.fill", name: "微信", bg: Color(red: 0.03, green: 0.76, blue: 0.38))
-                Spacer()
-                platformIcon(icon: "building.2.fill", name: "企业微信", bg: Color(red: 0.00, green: 0.51, blue: 0.94))
-                Spacer()
-                platformIcon(icon: "paperplane.fill", name: "飞书", bg: Color(red: 0.20, green: 0.44, blue: 1.00))
-                Spacer()
-                platformIcon(icon: "pin.fill", name: "钉钉", bg: Color(red: 0.00, green: 0.54, blue: 1.00))
-                Spacer()
+            HStack(spacing: 8) {
+                platformIcon(icon: "message.fill", name: "微信", bg: Color(red: 0.03, green: 0.76, blue: 0.38)).frame(maxWidth: .infinity)
+                platformIcon(icon: "building.2.fill", name: "企业微信", bg: Color(red: 0.00, green: 0.51, blue: 0.94)).frame(maxWidth: .infinity)
+                platformIcon(icon: "paperplane.fill", name: "飞书", bg: Color(red: 0.20, green: 0.44, blue: 1.00)).frame(maxWidth: .infinity)
+                platformIcon(icon: "pin.fill", name: "钉钉", bg: Color(red: 0.00, green: 0.54, blue: 1.00)).frame(maxWidth: .infinity)
             }
         }
     }
