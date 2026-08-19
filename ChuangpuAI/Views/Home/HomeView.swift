@@ -24,39 +24,48 @@ struct HomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-            if inputFocused {
-                // 聊天模式：大厂原生结构（微信同款）——聊天区占满，输入栏 safeAreaInset 系统原生自动贴键盘
-                chatHistoryArea
-                    .safeAreaInset(edge: .bottom, spacing: 0) { inputBar }
-                    .scrollDismissesKeyboard(.interactively)
-                    .onTapGesture { inputFocused = false }
-            } else {
-                // 首页模式：保持安卓对齐布局，整页锁死一屏
-                GeometryReader { geo in
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: itemSpacing) {
-                            lobsterHero
-                            startYangXiaBtn
-                            Spacer(minLength: itemSpacing)
-                            inputBar
-                            quickSkillsArea
-                            platformArea
-                        }
-                        .padding(.horizontal, hPadding)
-                        .padding(.top, 4)
-                        .padding(.bottom, 16)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: geo.size.height)
-                    }
-                    .scrollDismissesKeyboard(.immediately)
+            // 内容区：聊天模式显示聊天记录，首页模式显示首页卡片（都不含输入框）
+            Group {
+                if inputFocused {
+                    // 聊天模式：聊天区占满输入栏上方，独立滚动，点空白收键盘
+                    chatHistoryArea
+                        .scrollDismissesKeyboard(.interactively)
+                        .onTapGesture { inputFocused = false }
+                } else {
+                    // 首页模式：保持安卓对齐布局，整页锁死一屏
+                    homeContent
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        // 输入框常驻底部（safeAreaInset 系统原生贴键盘；永不销毁，焦点稳定不锁死）
+        .safeAreaInset(edge: .bottom, spacing: 0) { inputBar }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Constants.bgPrimary.ignoresSafeArea())
         .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
+    }
+
+    // 首页内容区：龙虾/开始养虾/快捷技能/平台接入（输入框已沉底常驻，不在内容区内）
+    private var homeContent: some View {
+        GeometryReader { geo in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: itemSpacing) {
+                    lobsterHero
+                    startYangXiaBtn
+                    Spacer(minLength: itemSpacing)
+                    quickSkillsArea
+                    platformArea
+                }
+                .padding(.horizontal, hPadding)
+                .padding(.top, 4)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: geo.size.height)
+            }
+            .scrollDismissesKeyboard(.immediately)
+        }
     }
 
     // 导航栏：只留汉堡（对照安卓，无标题无模型标签）
