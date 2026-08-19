@@ -124,7 +124,7 @@ class AuthManager: ObservableObject {
     
     /// 获取当前模型
     func getCurrentModel() -> String {
-        return UserDefaults.standard.string(forKey: Constants.currentModelKey) ?? "deepseek-v3"
+        return UserDefaults.standard.string(forKey: Constants.currentModelKey) ?? "deepseek-v4-flash"
     }
     
     /// 设置当前模型
