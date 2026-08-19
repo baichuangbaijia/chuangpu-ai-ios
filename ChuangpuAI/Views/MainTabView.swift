@@ -29,6 +29,7 @@ struct MainTabView: View {
                     Constants.bgSecondary
                         .ignoresSafeArea(edges: .bottom)
                 )
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 .overlay(
                     Rectangle().fill(Constants.bgTertiary).frame(height: 0.5),
                     alignment: .top

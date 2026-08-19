@@ -1,6 +1,12 @@
 import UIKit
 import SwiftUI
 
+struct ChatMessage: Identifiable {
+    let id = UUID()
+    let text: String
+    let isUser: Bool
+}
+
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var inputText = ""
@@ -8,6 +14,8 @@ struct HomeView: View {
     @State private var showModelSelector = false
     @State private var showSidebar = false
     @State private var glowPhase: Double = 0.4
+    @FocusState private var inputFocused: Bool
+    @State private var messages: [ChatMessage] = []
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -22,10 +30,16 @@ struct HomeView: View {
                     VStack(spacing: itemSpacing) {
                         lobsterHero
                         startYangXiaBtn
-                        Spacer(minLength: itemSpacing)
+                        if inputFocused {
+                            chatHistoryArea(height: max(geo.size.height * 0.42, 160))
+                        } else {
+                            Spacer(minLength: itemSpacing)
+                        }
                         inputBar
-                        quickSkillsArea
-                        platformArea
+                        if !inputFocused {
+                            quickSkillsArea
+                            platformArea
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: geo.size.height)
@@ -33,10 +47,12 @@ struct HomeView: View {
                     .padding(.top, 4)
                     .padding(.bottom, 16)
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Constants.bgPrimary.ignoresSafeArea())
+        .onTapGesture { if inputFocused { inputFocused = false } }
         .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
@@ -100,7 +116,8 @@ struct HomeView: View {
                 TextField("分配一个任务或提问任何问题", text: $inputText)
                     .font(.system(size: 16))
                     .foregroundColor(.white)
-                Button(action: {}) {
+                    .focused($inputFocused)
+                Button(action: sendMessage) {
                     Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
                 }
                 .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
@@ -200,6 +217,54 @@ struct HomeView: View {
                 Image(systemName: icon).font(.system(size: 18, weight: .medium)).foregroundColor(.white)
             }
             Text(name).font(.system(size: 10)).foregroundColor(Constants.textSecondary)
+        }
+    }
+
+    // 聊天记录区（输入框聚焦时显示，占可视区 42%）
+    private func chatHistoryArea(height: CGFloat) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 10) {
+                    ForEach(messages) { msg in
+                        chatBubble(msg)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .frame(height: height)
+            .onChange(of: messages.count) { _ in
+                if let last = messages.last {
+                    withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+            }
+        }
+    }
+
+    // 聊天气泡：用户消息右侧紫色，AI 回复左侧深色
+    private func chatBubble(_ msg: ChatMessage) -> some View {
+        HStack {
+            if msg.isUser { Spacer(minLength: 40) }
+            Text(msg.text)
+                .font(.system(size: 14))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(msg.isUser ? Constants.primaryPurple : Constants.bgTertiary)
+                .cornerRadius(14)
+            if !msg.isUser { Spacer(minLength: 40) }
+        }
+        .id(msg.id)
+    }
+
+    // 发送消息（本地演示版：上屏+模拟AI回复，接真实接口后替换）
+    private func sendMessage() {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        messages.append(ChatMessage(text: text, isUser: true))
+        inputText = ""
+        inputFocused = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            messages.append(ChatMessage(text: "收到，我马上帮你处理「\(text)」（演示回复，接入接口后自动替换）", isUser: false))
         }
     }
 
