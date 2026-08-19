@@ -18,18 +18,23 @@ struct HomeView: View {
             Constants.bgPrimary.ignoresSafeArea()
             VStack(spacing: 0) {
                 topBar
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: itemSpacing) {
-                        lobsterHero
-                        startYangXiaBtn
-                        inputBar
-                        quickSkillsArea
-                        platformArea
+                // GeometryReader 获取可视高度，内容区撑满屏幕；聊天框以下沉底
+                GeometryReader { geo in
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: itemSpacing) {
+                            lobsterHero
+                            startYangXiaBtn
+                            inputBar
+                            Spacer(minLength: itemSpacing)
+                            quickSkillsArea
+                            platformArea
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: geo.size.height)
+                        .padding(.horizontal, hPadding)
+                        .padding(.top, 4)
+                        .padding(.bottom, 16)
                     }
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .padding(.horizontal, hPadding)
-                    .padding(.top, 4)
-                    .padding(.bottom, 16)
                 }
             }
         }
