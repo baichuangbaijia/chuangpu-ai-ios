@@ -26,6 +26,7 @@ struct HomeView: View {
                         quickSkillsArea
                         platformArea
                     }
+                    .frame(maxWidth: .infinity, alignment: .top)
                     .padding(.horizontal, hPadding)
                     .padding(.top, 4)
                     .padding(.bottom, 16)
@@ -75,7 +76,7 @@ struct HomeView: View {
                     Text("开始养虾").font(.system(size: 16, weight: .bold))
                 }
                 .foregroundColor(.white)
-                .frame(maxWidth: .infinity).frame(height: 50)
+                .frame(width: (UIScreen.main.bounds.width - hPadding * 2) / 2).frame(height: 50)
                 .background(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .leading, endPoint: .trailing))
                 .cornerRadius(25)
                 .shadow(color: Constants.primaryPurple.opacity(glowPhase), radius: 14, x: 0, y: 4)
@@ -87,16 +88,25 @@ struct HomeView: View {
         .padding(.horizontal, 8)
     }
 
-    // 输入框 + 标签行（定时任务/模型）
+    // 聊天框（放大版）：输入行 + 发送键 + 标签行（定时任务/模型）都在框内
     private var inputBar: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                Button(action: {}) { Image(systemName: "calendar.badge.clock").font(.system(size: 22)).foregroundColor(Constants.primaryPurple) }
-                TextField("分配一个任务或提问任何问题", text: $inputText).font(.system(size: 16)).foregroundColor(.white).padding(.horizontal, 16).padding(.vertical, 12).background(Constants.bgTertiary).cornerRadius(24)
+        VStack(spacing: 10) {
+            // 输入行：输入框 + 发送键（左侧无图标）
+            HStack(spacing: 10) {
+                TextField("分配一个任务或提问任何问题", text: $inputText)
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
                 Button(action: {}) {
-                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 36)).foregroundStyle(Constants.accentOrange)
-                }.disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
+                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
+                }
+                .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Constants.bgTertiary)
+            .cornerRadius(24)
+
+            // 标签行：定时任务 / 选择模型（在聊天框内）
             HStack(spacing: 12) {
                 Button(action: {}) {
                     HStack(spacing: 4) {
@@ -118,8 +128,13 @@ struct HomeView: View {
                     .background(Constants.bgTertiary)
                     .cornerRadius(12)
                 }
+                Spacer()
             }
         }
+        .padding(12)
+        .background(Constants.bgSecondary)
+        .cornerRadius(28)
+        .frame(maxWidth: .infinity)
     }
 
     // 快捷按钮 6 个：3 列自动等分撑满整行，高度按屏宽比例自适应
