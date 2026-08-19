@@ -4,37 +4,41 @@ import SwiftUI
 /// 安卓要素: 底部3个Tab(首页/技能/我的)、Tab切换图标+文字、选中紫色未选中灰色
 struct MainTabView: View {
     @State private var selectedTab = 0
+    // Tab 栏固定高度（内容区底部留白用）
+    private let tabBarHeight: CGFloat = 60
     
     var body: some View {
         ZStack {
             Constants.bgPrimary.ignoresSafeArea()
             
-            VStack(spacing: 0) {
-                // 内容区
-                ZStack {
-                    if selectedTab == 0 { HomeView() }
-                    else if selectedTab == 1 { SkillView() }
-                    else { MyView() }
-                }
-                
-                // 底部Tab栏（对照安卓底部导航）
-                HStack(spacing: 0) {
-                    tabItem(icon: "house.fill", title: "首页", index: 0)
-                    tabItem(icon: "star.fill", title: "技能市场", index: 1)
-                    tabItem(icon: "person.fill", title: "我的", index: 2)
-                }
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-                .background(
-                    Constants.bgSecondary
-                        .ignoresSafeArea(edges: .bottom)
-                )
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-                .overlay(
-                    Rectangle().fill(Constants.bgTertiary).frame(height: 0.5),
-                    alignment: .top
-                )
+            // 内容区（正常避让键盘；底部留出 Tab 栏高度）
+            ZStack {
+                if selectedTab == 0 { HomeView() }
+                else if selectedTab == 1 { SkillView() }
+                else { MyView() }
             }
+            .padding(.bottom, tabBarHeight)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // 底部Tab栏：独立层固定在屏幕底部，键盘弹出时不随输入框弹起
+            HStack(spacing: 0) {
+                tabItem(icon: "house.fill", title: "首页", index: 0)
+                tabItem(icon: "star.fill", title: "技能市场", index: 1)
+                tabItem(icon: "person.fill", title: "我的", index: 2)
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+            .background(
+                Constants.bgSecondary
+                    .ignoresSafeArea(edges: .bottom)
+            )
+            .overlay(
+                Rectangle().fill(Constants.bgTertiary).frame(height: 0.5),
+                alignment: .top
+            )
+            .frame(maxWidth: .infinity)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .ignoresSafeArea(.keyboard)
         }
     }
     

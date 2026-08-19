@@ -19,7 +19,7 @@ struct HomeView: View {
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
-    private let itemSpacing: CGFloat = 12
+    private let itemSpacing: CGFloat = 8
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,7 +31,7 @@ struct HomeView: View {
                         lobsterHero
                         startYangXiaBtn
                         if inputFocused {
-                            chatHistoryArea(height: max(geo.size.height * 0.42, 160))
+                            chatHistoryArea(height: max(geo.size.height * 0.38, 140))
                         } else {
                             Spacer(minLength: itemSpacing)
                         }
@@ -42,7 +42,7 @@ struct HomeView: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(minHeight: geo.size.height)
+                    .frame(height: geo.size.height)
                     .padding(.horizontal, hPadding)
                     .padding(.top, 4)
                     .padding(.bottom, 16)
@@ -73,7 +73,7 @@ struct HomeView: View {
 
     // 主视觉：红色大龙虾（高度按屏幕比例自适应，钳制 170~300）
     private var lobsterHero: some View {
-        let heroH = min(max(UIScreen.main.bounds.height * 0.24, 170), 300)
+        let heroH = min(max(UIScreen.main.bounds.height * 0.18, 120), 200)
         return Image("lobster")
             .resizable()
             .scaledToFit()
@@ -159,7 +159,7 @@ struct HomeView: View {
 
     // 快捷按钮 6 个：3 列自动等分撑满整行，高度按屏宽比例自适应
     private var quickSkillsArea: some View {
-        let btnH = (UIScreen.main.bounds.width - 48) / 3 * 0.55
+        let btnH = (UIScreen.main.bounds.width - 48) / 3 * 0.5
         return VStack(spacing: 8) {
             HStack(spacing: 8) {
                 skillBtn(icon: "tablecells", title: "创建表格", bg: Constants.primaryPurple, gradient: false, h: btnH)
@@ -231,6 +231,7 @@ struct HomeView: View {
                 }
                 .padding(.vertical, 4)
             }
+            .scrollDismissesKeyboard(.immediately)
             .frame(height: height)
             .onChange(of: messages.count) { _ in
                 if let last = messages.last {
