@@ -41,11 +41,11 @@ struct HomeView: View {
                             platformArea
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: geo.size.height)
                     .padding(.horizontal, hPadding)
                     .padding(.top, 4)
                     .padding(.bottom, 16)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: geo.size.height)
                 }
                 .scrollDismissesKeyboard(.immediately)
             }
