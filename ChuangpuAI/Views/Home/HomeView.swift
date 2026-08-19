@@ -3,7 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var inputText = ""
-    @State private var currentModel = "deepseek-v3"
+    @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
     @State private var showSidebar = false
     @State private var glowPhase: Double = 0.4
@@ -34,7 +34,7 @@ struct HomeView: View {
                 Image(systemName: "line.3.horizontal").font(.system(size: 22, weight: .medium)).foregroundColor(.white)
             }
             Spacer()
-            Text("创普AI团队").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+            Text("开始养虾").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
             Spacer()
             Button(action: { showModelSelector = true }) {
                 let name = getModelName(currentModel)
@@ -54,35 +54,45 @@ struct HomeView: View {
     }
     
     private func getModelName(_ id: String) -> String {
-        let m: [(String, String)] = [("deepseek-v3","DeepSeek V3"),("kimi-2.5","Kimi 2.5"),("glm-5","GLM-5"),("minimax-m2.5","MiniMax M2.5"),("doubao-2.0","豆包 2.0")]
+        let m: [(String, String)] = [("deepseek-v4-flash","DeepSeek-V4-Flash"),("deepseek-v3","DeepSeek V3"),("kimi-2.5","Kimi 2.5"),("glm-5","GLM-5"),("minimax-m2.5","MiniMax M2.5"),("doubao-2.0","豆包 2.0")]
         for item in m { if item.0 == id { return item.1 } }
-        return "DeepSeek V3"
+        return "DeepSeek-V4-Flash"
     }
     
     private var quickSkillsArea: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                skillBtn(icon: "tablecells", title: "创建表格", color: Constants.accentBlue)
-                skillBtn(icon: "magnifyingglass", title: "市场调研", color: Constants.accentGreen)
-                skillBtn(icon: "note.text", title: "日常记录", color: Constants.accentOrange)
+                skillBtn(icon: "tablecells", title: "创建表格", bg: Constants.primaryPurple, gradient: false)
+                skillBtn(icon: "magnifyingglass", title: "市场调研", bg: Constants.bgTertiary, gradient: false)
+                skillBtn(icon: "note.text", title: "日常记录", bg: Constants.secondaryPurple, gradient: false)
             }
             HStack(spacing: 8) {
-                skillBtn(icon: "doc.text", title: "创建合同", color: Constants.primaryPurple)
-                skillBtn(icon: "globe", title: "创建网站", color: Constants.secondaryPurple)
-                skillBtn(icon: "airplane", title: "旅行规划", color: Constants.accentBlue)
+                skillBtn(icon: "doc.text", title: "创建合同", bg: Constants.primaryPurple, gradient: true)
+                skillBtn(icon: "globe", title: "创建网站", bg: Constants.bgTertiary, gradient: true)
+                skillBtn(icon: "airplane", title: "旅行规划", bg: Constants.secondaryPurple, gradient: true)
             }
         }.padding(.horizontal, 16)
     }
     
-    private func skillBtn(icon: String, title: String, color: Color) -> some View {
+    private func skillBtn(icon: String, title: String, bg: Color, gradient: Bool) -> some View {
         Button(action: { inputText = "帮我\(title)" }) {
-            VStack(spacing: 4) {
-                ZStack {
-                    Circle().fill(color.opacity(0.15)).frame(width: 32, height: 32)
-                    Image(systemName: icon).font(.system(size: 16)).foregroundColor(color)
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 16)).foregroundColor(.white)
+                Text(title).font(.system(size: 12, weight: .medium)).foregroundColor(.white)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity).frame(height: 48)
+            .background(
+                Group {
+                    if gradient {
+                        LinearGradient(colors: [bg, bg.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    } else {
+                        LinearGradient(colors: [bg, bg], startPoint: .leading, endPoint: .trailing)
+                    }
                 }
-                Text(title).font(.system(size: 10)).foregroundColor(.white)
-            }.frame(maxWidth: .infinity).frame(height: 64).background(Constants.bgTertiary).cornerRadius(10)
+            )
+            .cornerRadius(24)
         }
     }
     
@@ -90,7 +100,7 @@ struct HomeView: View {
         VStack(spacing: 10) {
             Button(action: {}) {
                 HStack(spacing: 10) {
-                    Image(systemName: "message.fill").font(.system(size: 18))
+                    Text("\u{1F99E}").font(.system(size: 22))
                     Text("开始养虾").font(.system(size: 16, weight: .bold))
                 }
                 .foregroundColor(.white)
@@ -110,19 +120,19 @@ struct HomeView: View {
         VStack(spacing: 8) {
             Text("聊天平台接入").font(.system(size: 11)).foregroundColor(Constants.textSecondary)
             HStack(spacing: 28) {
-                platformIcon(icon: "message.fill", name: "微信", color: Constants.accentGreen)
-                platformIcon(icon: "building.2.fill", name: "企业微信", color: Constants.accentBlue)
-                platformIcon(icon: "paperplane.fill", name: "飞书", color: Constants.accentBlue)
-                platformIcon(icon: "bell.fill", name: "钉钉", color: Constants.primaryPurple)
+                platformIcon(icon: "message.fill", name: "微信", bg: Color(red: 0.03, green: 0.76, blue: 0.38))
+                platformIcon(icon: "building.2.fill", name: "企业微信", bg: Color(red: 0.00, green: 0.51, blue: 0.94))
+                platformIcon(icon: "paperplane.fill", name: "飞书", bg: Color(red: 0.20, green: 0.44, blue: 1.00))
+                platformIcon(icon: "pin.fill", name: "钉钉", bg: Color(red: 0.00, green: 0.54, blue: 1.00))
             }
         }
     }
     
-    private func platformIcon(icon: String, name: String, color: Color) -> some View {
+    private func platformIcon(icon: String, name: String, bg: Color) -> some View {
         VStack(spacing: 4) {
             ZStack {
-                Circle().fill(color.opacity(0.15)).frame(width: 36, height: 36)
-                Image(systemName: icon).font(.system(size: 16)).foregroundColor(color)
+                RoundedRectangle(cornerRadius: 10).fill(bg).frame(width: 40, height: 40)
+                Image(systemName: icon).font(.system(size: 18, weight: .medium)).foregroundColor(.white)
             }
             Text(name).font(.system(size: 10)).foregroundColor(Constants.textSecondary)
         }
@@ -172,7 +182,7 @@ struct HomeView: View {
 struct ModelSelectorSheet: View {
     @Binding var currentModel: String
     @Environment(\.dismiss) private var dismiss
-    private let models = [("deepseek-v3","DeepSeek V3",true),("kimi-2.5","Kimi 2.5",false),("glm-5","GLM-5",false),("minimax-m2.5","MiniMax M2.5",false),("doubao-2.0","豆包 2.0",false)]
+    private let models = [("deepseek-v4-flash","DeepSeek-V4-Flash",true),("deepseek-v3","DeepSeek V3",true),("kimi-2.5","Kimi 2.5",false),("glm-5","GLM-5",false),("minimax-m2.5","MiniMax M2.5",false),("doubao-2.0","豆包 2.0",false)]
     var body: some View {
         NavigationStack {
             ZStack {

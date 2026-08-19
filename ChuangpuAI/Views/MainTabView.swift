@@ -20,7 +20,7 @@ struct MainTabView: View {
                 // 底部Tab栏（对照安卓底部导航）
                 HStack(spacing: 0) {
                     tabItem(icon: "house.fill", title: "首页", index: 0)
-                    tabItem(icon: "puzzlepiece.extension.fill", title: "技能市场", index: 1)
+                    tabItem(icon: "star.fill", title: "技能市场", index: 1)
                     tabItem(icon: "person.fill", title: "我的", index: 2)
                 }
                 .padding(.top, 8)
