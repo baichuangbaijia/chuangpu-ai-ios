@@ -101,10 +101,8 @@ struct HomeView: View {
                 }
                 .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Constants.bgTertiary)
-            .cornerRadius(24)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
 
             // 标签行：定时任务 / 选择模型（在聊天框内）
             HStack(spacing: 12) {
@@ -125,15 +123,16 @@ struct HomeView: View {
                     }
                     .foregroundColor(Constants.textSecondary)
                     .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Constants.bgTertiary)
+                    .background(Constants.bgSecondary)
                     .cornerRadius(12)
                 }
                 Spacer()
             }
         }
-        .padding(12)
-        .background(Constants.bgSecondary)
-        .cornerRadius(28)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Constants.bgTertiary)
+        .cornerRadius(24)
         .frame(maxWidth: .infinity)
     }
 
