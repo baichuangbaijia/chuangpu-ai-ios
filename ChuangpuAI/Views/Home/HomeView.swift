@@ -122,25 +122,24 @@ struct HomeView: View {
         }
     }
 
-    // 快捷按钮 6 个：3 列等分宽度，自适应屏幕
+    // 快捷按钮 6 个：3 列自动等分撑满整行，高度按屏宽比例自适应
     private var quickSkillsArea: some View {
-        let btnW = (UIScreen.main.bounds.width - hPadding*2 - 8*2) / 3
-        let btnH = btnW * 0.42
+        let btnH = (UIScreen.main.bounds.width - 48) / 3 * 0.45
         return VStack(spacing: 8) {
             HStack(spacing: 8) {
-                skillBtn(icon: "tablecells", title: "创建表格", bg: Constants.primaryPurple, gradient: false, w: btnW, h: btnH)
-                skillBtn(icon: "magnifyingglass", title: "市场调研", bg: Constants.bgTertiary, gradient: false, w: btnW, h: btnH)
-                skillBtn(icon: "note.text", title: "日常记录", bg: Constants.secondaryPurple, gradient: false, w: btnW, h: btnH)
+                skillBtn(icon: "tablecells", title: "创建表格", bg: Constants.primaryPurple, gradient: false, h: btnH)
+                skillBtn(icon: "magnifyingglass", title: "市场调研", bg: Constants.bgTertiary, gradient: false, h: btnH)
+                skillBtn(icon: "note.text", title: "日常记录", bg: Constants.secondaryPurple, gradient: false, h: btnH)
             }
             HStack(spacing: 8) {
-                skillBtn(icon: "doc.text", title: "创建合同", bg: Constants.primaryPurple, gradient: true, w: btnW, h: btnH)
-                skillBtn(icon: "globe", title: "创建网站", bg: Constants.bgTertiary, gradient: true, w: btnW, h: btnH)
-                skillBtn(icon: "airplane", title: "旅行规划", bg: Constants.secondaryPurple, gradient: true, w: btnW, h: btnH)
+                skillBtn(icon: "doc.text", title: "创建合同", bg: Constants.primaryPurple, gradient: true, h: btnH)
+                skillBtn(icon: "globe", title: "创建网站", bg: Constants.bgTertiary, gradient: true, h: btnH)
+                skillBtn(icon: "airplane", title: "旅行规划", bg: Constants.secondaryPurple, gradient: true, h: btnH)
             }
         }
     }
 
-    private func skillBtn(icon: String, title: String, bg: Color, gradient: Bool, w: CGFloat, h: CGFloat) -> some View {
+    private func skillBtn(icon: String, title: String, bg: Color, gradient: Bool, h: CGFloat) -> some View {
         Button(action: { inputText = "帮我\(title)" }) {
             HStack(spacing: 8) {
                 Image(systemName: icon).font(.system(size: 15)).foregroundColor(.white)
@@ -148,7 +147,8 @@ struct HomeView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)
-            .frame(width: w, height: h)
+            .frame(maxWidth: .infinity)
+            .frame(height: h)
             .background(
                 Group {
                     if gradient {
