@@ -32,14 +32,21 @@ struct HomeView: View {
                         .scrollDismissesKeyboard(.interactively)
                         .onTapGesture { inputFocused = false }
                 } else {
-                    // 首页模式：保持安卓对齐布局，整页锁死一屏
-                    homeContent
+                    // 首页模式：龙虾/按钮/弹性空白（不含输入框，输入框常驻下方）
+                    homeTop
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // 输入框常驻（VStack 第 3 元素，永不销毁；未聚焦时位于 6 卡片上方，聚焦时贴键盘顶）
+            inputBar
+                .padding(.horizontal, hPadding)
+
+            // 首页下区：6 快捷卡片 + 平台接入（聚焦时隐藏；非输入框，切换销毁无副作用）
+            if !inputFocused {
+                homeBottom
+            }
         }
-        // 输入框常驻底部（safeAreaInset 系统原生贴键盘；永不销毁，焦点稳定不锁死）
-        .safeAreaInset(edge: .bottom, spacing: 0) { inputBar }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Constants.bgPrimary.ignoresSafeArea())
         .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
@@ -47,25 +54,24 @@ struct HomeView: View {
         .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
     }
 
-    // 首页内容区：龙虾/开始养虾/快捷技能/平台接入（输入框已沉底常驻，不在内容区内）
-    private var homeContent: some View {
-        GeometryReader { geo in
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: itemSpacing) {
-                    lobsterHero
-                    startYangXiaBtn
-                    Spacer(minLength: itemSpacing)
-                    quickSkillsArea
-                    platformArea
-                }
-                .padding(.horizontal, hPadding)
-                .padding(.top, 4)
-                .padding(.bottom, 16)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: geo.size.height)
-            }
-            .scrollDismissesKeyboard(.immediately)
+    // 首页上区：龙虾/开始养虾/弹性空白（占满，把输入框顶到 6 卡片上方）
+    private var homeTop: some View {
+        VStack(spacing: itemSpacing) {
+            lobsterHero
+            startYangXiaBtn
+            Spacer(minLength: itemSpacing)
         }
+        .padding(.top, 4)
+    }
+
+    // 首页下区：6 快捷卡片 + 平台接入（在输入框下方）
+    private var homeBottom: some View {
+        VStack(spacing: itemSpacing) {
+            quickSkillsArea
+            platformArea
+        }
+        .padding(.horizontal, hPadding)
+        .padding(.bottom, 16)
     }
 
     // 导航栏：只留汉堡（对照安卓，无标题无模型标签）
@@ -83,7 +89,7 @@ struct HomeView: View {
 
     // 主视觉：红色大龙虾（高度按屏幕比例自适应，钳制 170~300）
     private var lobsterHero: some View {
-        let heroH = min(max(UIScreen.main.bounds.height * 0.18, 120), 200)
+        let heroH = min(max(UIScreen.main.bounds.height * 0.18, 100), 200)
         return Image("lobster")
             .resizable()
             .scaledToFit()
@@ -161,7 +167,7 @@ struct HomeView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .frame(maxWidth: .infinity)
@@ -169,7 +175,7 @@ struct HomeView: View {
 
     // 快捷按钮 6 个：3 列自动等分撑满整行，高度按屏宽比例自适应
     private var quickSkillsArea: some View {
-        let btnH = (UIScreen.main.bounds.width - 48) / 3 * 0.5
+        let btnH = (UIScreen.main.bounds.width - 48) / 3 * 0.45
         return VStack(spacing: 8) {
             HStack(spacing: 8) {
                 skillBtn(icon: "tablecells", title: "创建表格", bg: Constants.primaryPurple, gradient: false, h: btnH)
@@ -223,7 +229,7 @@ struct HomeView: View {
     private func platformIcon(icon: String, name: String, bg: Color) -> some View {
         VStack(spacing: 4) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10).fill(bg).frame(width: 40, height: 40)
+                RoundedRectangle(cornerRadius: 10).fill(bg).frame(width: 36, height: 36)
                 Image(systemName: icon).font(.system(size: 18, weight: .medium)).foregroundColor(.white)
             }
             Text(name).font(.system(size: 10)).foregroundColor(Constants.textSecondary)
