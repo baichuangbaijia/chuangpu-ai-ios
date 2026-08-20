@@ -97,26 +97,35 @@ struct MyView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     
-                    // ===== 功能组1（对齐安卓: 对话历史/我的AI记忆/定时任务/技能市场）=====
-                    VStack(spacing: 1) {
+                    // ===== 更多功能大卡片（左上角标题 + 全部功能项）=====
+                    VStack(spacing: 0) {
+                        // 左上角标题
+                        HStack {
+                            Text("更多功能")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 14)
+                        .padding(.bottom, 6)
+                        
                         menuItem(icon: "clock.arrow.circlepath", title: "对话历史", color: Constants.accentBlue)
                         menuItem(icon: "brain.head.profile", title: "我的AI记忆", color: Constants.accentGreen)
                         menuItem(icon: "calendar.badge.clock", title: "定时任务", color: Constants.primaryPurple)
                         menuItem(icon: "puzzlepiece.extension", title: "技能市场", color: Constants.accentOrange)
-                    }
-                    .background(Constants.bgSecondary)
-                    .cornerRadius(12)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    
-                    // ===== 功能组2（对齐安卓: 积分明细/设置/关于我们）=====
-                    VStack(spacing: 1) {
+                        
+                        // 组间细分隔线
+                        Rectangle()
+                            .fill(Constants.bgTertiary)
+                            .frame(height: 1)
+                        
                         menuItem(icon: "creditcard.fill", title: "积分明细", color: Constants.accentOrange)
                         menuItem(icon: "gearshape.fill", title: "设置", color: Constants.textSecondary)
                         menuItem(icon: "info.circle.fill", title: "关于我们", color: Constants.accentBlue)
                     }
                     .background(Constants.bgSecondary)
-                    .cornerRadius(12)
+                    .cornerRadius(16)
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     
@@ -134,7 +143,7 @@ struct MyView: View {
                     .padding(.top, 20)
                     
                     // 版本号（动态读取 Bundle 版本，修复写死 v2.0.44 遗留）
-                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.89")")
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.90")")
                         .font(.system(size: 13))
                         .foregroundColor(Constants.textSecondary)
                         .padding(.top, 16)
@@ -153,7 +162,7 @@ struct MyView: View {
         .alert("关于我们", isPresented: $showAbout) {
             Button("确定") {}
         } message: {
-            Text("创普AI v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.89")\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
+            Text("创普AI v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.90")\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
         }
     }
     
