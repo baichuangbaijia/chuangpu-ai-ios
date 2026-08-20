@@ -7,6 +7,14 @@ struct ChatMessage: Identifiable {
     let isUser: Bool
 }
 
+// 2.0.97：输入栏内容高度测量（聚焦时输入栏高度翻倍向上延伸，未聚焦零变化）
+private struct InputBarHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var inputText = ""
@@ -17,6 +25,7 @@ struct HomeView: View {
     @State private var showChat = false
     @FocusState private var inputFocused: Bool
     @State private var isKeyboardUp = false
+    @State private var barHeight: CGFloat = 0
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -190,6 +199,14 @@ struct HomeView: View {
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .frame(maxWidth: .infinity)
+        .background(
+            GeometryReader { geo in
+                Color.clear.preference(key: InputBarHeightKey.self, value: geo.size.height)
+            }
+        )
+        .onPreferenceChange(InputBarHeightKey.self) { barHeight = $0 }
+        .frame(height: inputFocused ? barHeight * 2 : nil, alignment: .bottom)
+        .animation(.easeOut(duration: 0.25), value: inputFocused)
     }
 
     // 发送跳转（2.0.94）：点输入框不跳转，点发送才带内容跳转新对话页
