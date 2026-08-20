@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 我的页面 - 对照安卓MyFragment
-/// 安卓要素: 头像+昵称+ID、VIP横幅(去开通)、统计数据(对话数/消息数/积分)、菜单(历史记录/我的记忆/定时任务/技能商店/设置/关于我们/退出登录)、版本号
+/// 安卓要素: 用户卡片(头像+昵称+ID+卡内横向3统计)、会员卡片(包年已开通+有效期+续期按钮)、功能两组(对话历史/我的AI记忆/定时任务/技能市场 + 积分明细/设置/关于我们)、退出登录、版本号
 struct MyView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var showLogoutAlert = false
@@ -13,88 +13,112 @@ struct MyView: View {
             
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    // 用户信息区（头像+昵称+ID）
-                    VStack(spacing: 12) {
-                        // 头像
-                        ZStack {
-                            Circle()
-                                .fill(LinearGradient(colors: [Constants.primaryPurple.opacity(0.3), Constants.secondaryPurple.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .frame(width: 80, height: 80)
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 32))
-                                .foregroundColor(Constants.primaryPurple)
-                        }
-                        
-                        // 昵称
-                        Text(authManager.currentUser?.nickname ?? "用户")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        // ID
-                        Text("ID: \(authManager.currentUser?.id ?? 0)")
-                            .font(.system(size: 13))
-                            .foregroundColor(Constants.textSecondary)
-                    }
-                    .padding(.top, 30)
-                    .padding(.bottom, 20)
-                    
-                    // VIP横幅（对照安卓vipBanner）
-                    Button(action: {}) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(Constants.accentOrange)
+                    // ===== 用户卡片（对齐安卓: 头像左 + 昵称/ID右 + 卡内横向3统计）=====
+                    VStack(spacing: 0) {
+                        HStack(spacing: 16) {
+                            // 头像 64pt
+                            ZStack {
+                                Circle()
+                                    .fill(LinearGradient(colors: [Constants.primaryPurple.opacity(0.3), Constants.secondaryPurple.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(width: 64, height: 64)
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 26))
+                                    .foregroundColor(Constants.primaryPurple)
+                            }
                             
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("开通VIP会员")
-                                    .font(.system(size: 16, weight: .semibold))
+                            // 昵称 + ID
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(authManager.currentUser?.nickname ?? "用户")
+                                    .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(.white)
-                                Text("解锁全部功能，享受无限对话")
-                                    .font(.system(size: 12))
+                                Text("ID: \(authManager.currentUser?.id ?? 0)")
+                                    .font(.system(size: 13))
                                     .foregroundColor(Constants.textSecondary)
                             }
                             
                             Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14))
+                        }
+                        .padding(.bottom, 16)
+                        
+                        // 卡内分隔线
+                        Rectangle()
+                            .fill(Constants.bgTertiary)
+                            .frame(height: 1)
+                        
+                        // 卡内横向3统计（对话/消息/积分，对齐安卓tvConversations/tvMessages/tvCredits）
+                        HStack(spacing: 0) {
+                            statItem(value: "0 条", label: "对话")
+                            Rectangle().fill(Constants.bgTertiary).frame(width: 1, height: 40)
+                            statItem(value: "0 条", label: "消息")
+                            Rectangle().fill(Constants.bgTertiary).frame(width: 1, height: 40)
+                            statItem(value: "0 分", label: "积分")
+                        }
+                        .padding(.top, 16)
+                    }
+                    .padding(20)
+                    .background(Constants.bgSecondary)
+                    .cornerRadius(16)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    
+                    // ===== 会员卡片（对齐安卓: 深紫卡 + 包年已开通 + 有效期 + 白色续期按钮）=====
+                    HStack(spacing: 12) {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(Constants.accentOrange)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("包年会员已开通")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                            Text("有效期至 2026-08-20")
+                                .font(.system(size: 12))
                                 .foregroundColor(Constants.textSecondary)
                         }
-                        .padding(16)
-                        .background(
-                            LinearGradient(colors: [Color(hex: "2A1A3E"), Color(hex: "1A2A3E")], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .cornerRadius(16)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Constants.accentOrange.opacity(0.3), lineWidth: 1)
-                        )
+                        
+                        Spacer()
+                        
+                        // 白色续期按钮（对齐安卓btnRenew）
+                        Button(action: {}) {
+                            Text("会员续期")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color(hex: "2A1A3E"))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color.white)
+                                .cornerRadius(16)
+                        }
                     }
+                    .padding(16)
+                    .background(
+                        LinearGradient(colors: [Color(hex: "2A1A3E"), Color(hex: "1A2A3E")], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .cornerRadius(16)
                     .padding(.horizontal, 20)
+                    .padding(.top, 16)
                     
-                    // 统计数据（对照安卓tvConversations/tvMessages/tvCredits）
-                    HStack(spacing: 0) {
-                        statItem(value: "0", label: "对话")
-                        Rectangle().fill(Constants.bgTertiary).frame(width: 1, height: 40)
-                        statItem(value: "0", label: "消息")
-                        Rectangle().fill(Constants.bgTertiary).frame(width: 1, height: 40)
-                        statItem(value: "0", label: "积分")
-                    }
-                    .padding(.vertical, 20)
-                    .padding(.horizontal, 20)
-                    
-                    // 菜单列表
+                    // ===== 功能组1（对齐安卓: 对话历史/我的AI记忆/定时任务/技能市场）=====
                     VStack(spacing: 1) {
-                        menuItem(icon: "clock.arrow.circlepath", title: "历史记录", color: Constants.accentBlue)
-                        menuItem(icon: "brain.head.profile", title: "我的记忆", color: Constants.accentGreen)
+                        menuItem(icon: "clock.arrow.circlepath", title: "对话历史", color: Constants.accentBlue)
+                        menuItem(icon: "brain.head.profile", title: "我的AI记忆", color: Constants.accentGreen)
                         menuItem(icon: "calendar.badge.clock", title: "定时任务", color: Constants.primaryPurple)
-                        menuItem(icon: "puzzlepiece.extension", title: "技能商店", color: Constants.accentOrange)
+                        menuItem(icon: "puzzlepiece.extension", title: "技能市场", color: Constants.accentOrange)
+                    }
+                    .background(Constants.bgSecondary)
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    
+                    // ===== 功能组2（对齐安卓: 积分明细/设置/关于我们）=====
+                    VStack(spacing: 1) {
+                        menuItem(icon: "creditcard.fill", title: "积分明细", color: Constants.accentOrange)
                         menuItem(icon: "gearshape.fill", title: "设置", color: Constants.textSecondary)
                         menuItem(icon: "info.circle.fill", title: "关于我们", color: Constants.accentBlue)
                     }
                     .background(Constants.bgSecondary)
                     .cornerRadius(12)
                     .padding(.horizontal, 20)
+                    .padding(.top, 16)
                     
                     // 退出登录按钮（对照安卓btnLogout）
                     Button(action: { showLogoutAlert = true }) {
@@ -109,8 +133,8 @@ struct MyView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                     
-                    // 版本号（对照安卓tvAboutVersion）
-                    Text("v2.0.44")
+                    // 版本号（动态读取 Bundle 版本，修复写死 v2.0.44 遗留）
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.89")")
                         .font(.system(size: 13))
                         .foregroundColor(Constants.textSecondary)
                         .padding(.top, 16)
@@ -129,7 +153,7 @@ struct MyView: View {
         .alert("关于我们", isPresented: $showAbout) {
             Button("确定") {}
         } message: {
-            Text("创普AI v2.0.44\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
+            Text("创普AI v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.89")\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
         }
     }
     
