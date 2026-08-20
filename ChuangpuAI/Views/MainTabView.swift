@@ -1,9 +1,12 @@
 import SwiftUI
+import UIKit
 
 /// 主Tab页 - 对照安卓MainActivity
 /// 安卓要素: 底部3个Tab(首页/技能/我的)、Tab切换图标+文字、选中紫色未选中灰色
 struct MainTabView: View {
     @State private var selectedTab = 0
+    // 键盘弹起状态：弹起时内容区底部 padding 归零，避免输入栏与键盘之间 60pt 留白
+    @State private var isKeyboardUp = false
     // Tab 栏固定高度（内容区底部留白用）
     private let tabBarHeight: CGFloat = 60
     
@@ -17,7 +20,7 @@ struct MainTabView: View {
                 else if selectedTab == 1 { SkillView() }
                 else { MyView() }
             }
-            .padding(.bottom, tabBarHeight)
+            .padding(.bottom, isKeyboardUp ? 0 : tabBarHeight) // 键盘弹起时 Tab 栏已被键盘盖住，无需再留 60pt
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // 底部Tab栏：独立层固定在屏幕底部，键盘弹出时不随输入框弹起
@@ -39,6 +42,12 @@ struct MainTabView: View {
             .frame(maxWidth: .infinity)
             .frame(maxHeight: .infinity, alignment: .bottom)
             .ignoresSafeArea(.keyboard)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardUp = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardUp = false
         }
     }
     
