@@ -30,6 +30,7 @@ struct HomeView: View {
                     // 聊天模式：聊天区占满输入栏上方，独立滚动，点空白收键盘
                     chatHistoryArea
                         .scrollDismissesKeyboard(.interactively)
+                        .contentShape(Rectangle())
                         .onTapGesture { inputFocused = false }
                 } else {
                     // 首页模式：龙虾/按钮/弹性空白（不含输入框，输入框常驻下方）
