@@ -152,6 +152,9 @@ struct HomeView: View {
     // 输入框（2.0.94）：点击聚焦就地输入不跳转，固定一行不拉伸；点发送才跳转新对话页
     private var inputBar: some View {
         VStack(spacing: 10) {
+            // 标签行：聚焦时上浮到输入行上方（延伸区），输入行贴键盘顶（2.0.99）
+            if inputFocused { tagRow }
+
             // 输入行：输入框（固定一行）+ 发送键（点发送带内容跳转）
             HStack(spacing: 10) {
                 TextField("分配一个任务或提问任何问题", text: $inputText)
@@ -169,30 +172,8 @@ struct HomeView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
 
-            // 标签行：定时任务 / 选择模型（在聊天框内）
-            HStack(spacing: 12) {
-                Button(action: {}) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "calendar").font(.system(size: 10))
-                        Text("定时任务").font(.system(size: 11))
-                    }
-                    .foregroundColor(Constants.accentOrange)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Constants.accentOrange.opacity(0.15))
-                    .cornerRadius(12)
-                }
-                Button(action: { showModelSelector = true }) {
-                    HStack(spacing: 4) {
-                        Circle().fill(Constants.accentGreen).frame(width: 5, height: 5)
-                        Text(getModelName(currentModel)).font(.system(size: 11))
-                    }
-                    .foregroundColor(Constants.textSecondary)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Constants.bgSecondary)
-                    .cornerRadius(12)
-                }
-                Spacer()
-            }
+            // 未聚焦：标签行在输入行下方（与 2.0.98 布局完全一致）
+            if !inputFocused { tagRow }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -202,11 +183,38 @@ struct HomeView: View {
                 Color.clear.preference(key: InputBarHeightKey.self, value: geo.size.height)
             }
         )
-        .onPreferenceChange(InputBarHeightKey.self) { barHeight = $0 }
+        .onPreferenceChange(InputBarHeightKey.self) { if $0 > 20 && $0 < 200 { barHeight = $0 } }
         .frame(height: inputFocused ? barHeight * 2 : nil, alignment: .bottom)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .animation(.easeOut(duration: 0.25), value: inputFocused)
+    }
+
+    // 标签行：定时任务 / 选择模型（2.0.99 抽出复用；聚焦时上浮到输入行上方，未聚焦在输入行下方）
+    private var tagRow: some View {
+        HStack(spacing: 12) {
+            Button(action: {}) {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar").font(.system(size: 10))
+                    Text("定时任务").font(.system(size: 11))
+                }
+                .foregroundColor(Constants.accentOrange)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(Constants.accentOrange.opacity(0.15))
+                .cornerRadius(12)
+            }
+            Button(action: { showModelSelector = true }) {
+                HStack(spacing: 4) {
+                    Circle().fill(Constants.accentGreen).frame(width: 5, height: 5)
+                    Text(getModelName(currentModel)).font(.system(size: 11))
+                }
+                .foregroundColor(Constants.textSecondary)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(Constants.bgSecondary)
+                .cornerRadius(12)
+            }
+            Spacer()
+        }
     }
 
     // 发送跳转（2.0.94）：点输入框不跳转，点发送才带内容跳转新对话页
