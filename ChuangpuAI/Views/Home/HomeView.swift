@@ -7,14 +7,6 @@ struct ChatMessage: Identifiable {
     let isUser: Bool
 }
 
-// 2.0.97：输入栏内容高度测量（聚焦时输入栏高度翻倍向上延伸，未聚焦零变化）
-private struct InputBarHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var inputText = ""
@@ -25,7 +17,6 @@ struct HomeView: View {
     @State private var showChat = false
     @FocusState private var inputFocused: Bool
     @State private var isKeyboardUp = false
-    @State private var barHeight: CGFloat = 0
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -150,12 +141,9 @@ struct HomeView: View {
         .padding(.horizontal, 8)
     }
 
-    // 输入框（2.0.94）：点击聚焦就地输入不跳转，固定一行不拉伸；点发送才跳转新对话页
+    // 输入框（2.1.2）：点击聚焦就地输入不跳转；聚焦时向上拉伸到固定两倍高（200pt）挤压上方；标签行固定下方不上浮；点发送才跳转新对话页
     private var inputBar: some View {
         VStack(spacing: 10) {
-            // 标签行：聚焦时上浮到输入行上方（延伸区），输入行贴键盘顶（2.0.99）
-            if inputFocused { tagRow }
-
             // 输入行：输入框（固定一行）+ 发送键（点发送带内容跳转）
             HStack(spacing: 10) {
                 TextField("分配一个任务或提问任何问题", text: $inputText)
@@ -173,19 +161,14 @@ struct HomeView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
 
-            // 未聚焦：标签行在输入行下方（与 2.0.98 布局完全一致）
-            if !inputFocused { tagRow }
+            // 标签行：定时任务 / 选择模型（固定在下，不随聚焦上浮；2.1.2）
+            tagRow
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
-        .background(
-            GeometryReader { geo in
-                Color.clear.preference(key: InputBarHeightKey.self, value: geo.size.height)
-            }
-        )
-        .onPreferenceChange(InputBarHeightKey.self) { if $0 > 20 && $0 < 200 { barHeight = $0 } }
-        .frame(height: inputFocused && barHeight > 0 ? barHeight * 2 : nil, alignment: .bottom)
+        // 2.1.2：固定两倍高拉伸（内容约102pt → 聚焦200pt），不依赖测量，点击必变高；内容贴底，标签行在下方
+        .frame(height: inputFocused ? 200 : nil, alignment: .bottom)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .animation(.easeOut(duration: 0.25), value: inputFocused)
