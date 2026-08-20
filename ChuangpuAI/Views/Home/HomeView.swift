@@ -22,7 +22,8 @@ struct HomeView: View {
     private let itemSpacing: CGFloat = 8
 
     var body: some View {
-        NavigationStack {
+        // 2.0.95：去掉导航栈改 ZStack 手动全屏切换（规避 iOS16 导航栈根视图输入框键盘不弹）
+        ZStack {
             VStack(spacing: 0) {
                 topBar
                 // 首页模式常驻：龙虾/按钮/弹性空白（2.0.93 输入跳转独立对话页，不再就地切换聊天）
@@ -31,7 +32,7 @@ struct HomeView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // 伪输入框（2.0.93：点击跳转独立对话页，不在首页输入，固定高度不拉伸）
+                // 输入框（2.0.94：点击聚焦就地输入不跳转，固定一行不拉伸；点发送才跳转新对话页）
                 inputBar
                     .padding(.horizontal, hPadding)
 
@@ -40,10 +41,21 @@ struct HomeView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Constants.bgPrimary.ignoresSafeArea())
-            .navigationDestination(isPresented: $showChat) { ChatConversationView(initialText: inputText) }
+            // 2.0.95：首页点空白收键盘（对齐新对话页 2.0.88 做法）
+            .contentShape(Rectangle())
+            .onTapGesture { if inputFocused { inputFocused = false } }
             .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
             .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
-            .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
+            .onAppear { currentModel = authManager.getCurrentModel(); inputFocused = false; startAnimations() }
+
+            // 2.0.95：跳转新对话页用 ZStack 全屏覆盖（不依赖导航栈），返回回调关掉覆盖层
+            if showChat {
+                ChatConversationView(initialText: inputText, onClose: {
+                    withAnimation(.easeInOut(duration: 0.25)) { showChat = false }
+                })
+                .transition(.move(edge: .trailing))
+                .zIndex(1)
+            }
         }
     }
 
@@ -129,7 +141,7 @@ struct HomeView: View {
                     .foregroundColor(.white)
                     .focused($inputFocused)
                     .submitLabel(.send)
-                    .onSubmit { jumpToChat() }
+                    .onSubmit { if inputFocused { jumpToChat() } }  // 2.0.95：防失焦误触发跳转
                 Button(action: jumpToChat) {
                     Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
                 }
@@ -175,7 +187,7 @@ struct HomeView: View {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         inputFocused = false
-        showChat = true
+        withAnimation(.easeInOut(duration: 0.25)) { showChat = true }
     }
 
     // 快捷按钮 6 个：3 列自动等分撑满整行，高度按屏宽比例自适应
@@ -282,7 +294,8 @@ struct ModelSelectorSheet: View {
 // 独立对话页（2.0.93）：点首页输入框跳转进入，顶部返回键；输入框固定单行不自动拉伸
 struct ChatConversationView: View {
     @EnvironmentObject var authManager: AuthManager
-    @Environment(\.dismiss) private var dismiss
+    // 2.0.95：无导航栈，返回用回调
+    let onClose: () -> Void
     @State private var inputText: String
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
@@ -290,7 +303,8 @@ struct ChatConversationView: View {
     @State private var initialText: String = ""
     @FocusState private var inputFocused: Bool
 
-    init(initialText: String = "") {
+    init(initialText: String = "", onClose: @escaping () -> Void = {}) {
+        self.onClose = onClose
         _inputText = State(initialValue: "")
         _initialText = State(initialValue: initialText)
         // 带词跳转：发送的内容直接上屏为第一条用户消息（2.0.94）
@@ -306,7 +320,7 @@ struct ChatConversationView: View {
         VStack(spacing: 0) {
             // 顶部导航栏：返回 + 标题（对标微信对话页）
             HStack {
-                Button(action: { dismiss() }) {
+                Button(action: { onClose() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
@@ -340,7 +354,6 @@ struct ChatConversationView: View {
                 .padding(.bottom, 10)
         }
         .background(Constants.bgPrimary.ignoresSafeArea())
-        .navigationBarHidden(true)
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear {
             currentModel = authManager.getCurrentModel()
@@ -386,7 +399,7 @@ struct ChatConversationView: View {
                     .foregroundColor(.white)
                     .focused($inputFocused)
                     .submitLabel(.send)
-                    .onSubmit { sendMessage() }
+                    .onSubmit { if inputFocused { sendMessage() } }  // 2.0.95：防失焦误触发发送
                 Button(action: sendMessage) {
                     Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
                 }
