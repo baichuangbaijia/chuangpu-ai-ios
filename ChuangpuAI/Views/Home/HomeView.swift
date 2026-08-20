@@ -15,6 +15,7 @@ struct HomeView: View {
     @State private var showSidebar = false
     @State private var glowPhase: Double = 0.4
     @State private var showChat = false
+    @FocusState private var inputFocused: Bool
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -117,26 +118,25 @@ struct HomeView: View {
         .padding(.horizontal, 8)
     }
 
-    // 伪输入框（2.0.93）：点击跳转独立对话页，不在首页输入；固定一行不拉伸
+    // 输入框（2.0.94）：点击聚焦就地输入不跳转，固定一行不拉伸；点发送才跳转新对话页
     private var inputBar: some View {
         VStack(spacing: 10) {
-            // 输入行（伪输入框）：点击跳转新对话页；6 卡片点选填词显示于此
-            Button(action: { showChat = true }) {
-                HStack(spacing: 10) {
-                    Text(inputText.isEmpty ? "分配一个任务或提问任何问题" : inputText)
-                        .font(.system(size: 16))
-                        .foregroundColor(inputText.isEmpty ? Constants.textSecondary : .white)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 30))
-                        .foregroundStyle(Constants.accentOrange)
+            // 输入行：输入框（固定一行）+ 发送键（点发送带内容跳转）
+            HStack(spacing: 10) {
+                TextField("分配一个任务或提问任何问题", text: $inputText)
+                    .lineLimit(1)
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+                    .focused($inputFocused)
+                    .submitLabel(.send)
+                    .onSubmit { jumpToChat() }
+                Button(action: jumpToChat) {
+                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .contentShape(Rectangle())
+                .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
 
             // 标签行：定时任务 / 选择模型（在聊天框内）
             HStack(spacing: 12) {
@@ -168,6 +168,14 @@ struct HomeView: View {
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .frame(maxWidth: .infinity)
+    }
+
+    // 发送跳转（2.0.94）：点输入框不跳转，点发送才带内容跳转新对话页
+    private func jumpToChat() {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        inputFocused = false
+        showChat = true
     }
 
     // 快捷按钮 6 个：3 列自动等分撑满整行，高度按屏宽比例自适应
@@ -279,10 +287,19 @@ struct ChatConversationView: View {
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
     @State private var messages: [ChatMessage] = []
+    @State private var initialText: String = ""
     @FocusState private var inputFocused: Bool
 
     init(initialText: String = "") {
-        _inputText = State(initialValue: initialText)
+        _inputText = State(initialValue: "")
+        _initialText = State(initialValue: initialText)
+        // 带词跳转：发送的内容直接上屏为第一条用户消息（2.0.94）
+        var msgs: [ChatMessage] = []
+        let t = initialText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !t.isEmpty {
+            msgs.append(ChatMessage(text: t, isUser: true))
+        }
+        _messages = State(initialValue: msgs)
     }
 
     var body: some View {
@@ -305,10 +322,10 @@ struct ChatConversationView: View {
             .padding(.top, 4)
             .padding(.bottom, 4)
 
-            // 聊天区：空状态问候 / 消息气泡；点空白收键盘
+            // 聊天区：空状态纯空白 / 消息气泡；点空白收键盘（2.0.94 问候语全删）
             Group {
                 if messages.isEmpty {
-                    emptyChatGuide
+                    Color.clear
                 } else {
                     chatHistoryArea
                 }
@@ -329,23 +346,14 @@ struct ChatConversationView: View {
             currentModel = authManager.getCurrentModel()
             // 跳转后自动聚焦弹出键盘（与微信点搜索框跳转一致）
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { inputFocused = true }
+            // 带词跳转：自动补 AI 回复（仅当还没有回复时补，防返回再进重复追加）
+            let t = initialText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty && messages.count == 1 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    messages.append(ChatMessage(text: "收到，我马上帮你处理「\(t)」（演示回复，接入接口后自动替换）", isUser: false))
+                }
+            }
         }
-    }
-
-    // 空状态引导：品牌问候（无快捷输入卡片）
-    private var emptyChatGuide: some View {
-        VStack(spacing: 6) {
-            Spacer(minLength: 0)
-            Text("🦞 一人成军 · AI 相助")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
-            Text("向你的 AI 员工派活吧")
-                .font(.system(size: 13))
-                .foregroundColor(Constants.textSecondary)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 16)
     }
 
     // 聊天记录区：消息列表自动滚动到底
