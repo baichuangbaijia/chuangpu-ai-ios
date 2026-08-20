@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 我的页面 - 对照安卓MyFragment
-/// 安卓要素: 用户卡片(头像+昵称+ID+卡内横向3统计)、会员卡片(包年已开通+有效期+续期按钮)、功能两组(对话历史/我的AI记忆/定时任务/技能市场 + 积分明细/设置/关于我们)、退出登录、版本号
+/// 安卓要素: 用户卡片(头像+昵称+ID+卡内横向3统计)、会员卡片(包年已开通+有效期+续期按钮)、更多功能宫格(4列自适应: 对话历史/我的AI记忆/定时任务/技能市场 + 积分明细/设置/关于我们)、退出登录、版本号
 struct MyView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var showLogoutAlert = false
@@ -110,19 +110,18 @@ struct MyView: View {
                         .padding(.top, 14)
                         .padding(.bottom, 6)
                         
-                        menuItem(icon: "clock.arrow.circlepath", title: "对话历史", color: Constants.accentBlue)
-                        menuItem(icon: "brain.head.profile", title: "我的AI记忆", color: Constants.accentGreen)
-                        menuItem(icon: "calendar.badge.clock", title: "定时任务", color: Constants.primaryPurple)
-                        menuItem(icon: "puzzlepiece.extension", title: "技能市场", color: Constants.accentOrange)
-                        
-                        // 组间细分隔线
-                        Rectangle()
-                            .fill(Constants.bgTertiary)
-                            .frame(height: 1)
-                        
-                        menuItem(icon: "creditcard.fill", title: "积分明细", color: Constants.accentOrange)
-                        menuItem(icon: "gearshape.fill", title: "设置", color: Constants.textSecondary)
-                        menuItem(icon: "info.circle.fill", title: "关于我们", color: Constants.accentBlue)
+                        // 4列自适应宫格（屏幕宽度自适应，第2行3项空1格）
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 16) {
+                            gridItem(icon: "clock.arrow.circlepath", title: "对话历史", color: Constants.accentBlue)
+                            gridItem(icon: "brain.head.profile", title: "我的AI记忆", color: Constants.accentGreen)
+                            gridItem(icon: "calendar.badge.clock", title: "定时任务", color: Constants.primaryPurple)
+                            gridItem(icon: "puzzlepiece.extension", title: "技能市场", color: Constants.accentOrange)
+                            gridItem(icon: "creditcard.fill", title: "积分明细", color: Constants.accentOrange)
+                            gridItem(icon: "gearshape.fill", title: "设置", color: Constants.textSecondary)
+                            gridItem(icon: "info.circle.fill", title: "关于我们", color: Constants.accentBlue)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                     }
                     .background(Constants.bgSecondary)
                     .cornerRadius(16)
@@ -143,7 +142,7 @@ struct MyView: View {
                     .padding(.top, 20)
                     
                     // 版本号（动态读取 Bundle 版本，修复写死 v2.0.44 遗留）
-                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.90")")
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.91")")
                         .font(.system(size: 13))
                         .foregroundColor(Constants.textSecondary)
                         .padding(.top, 16)
@@ -162,7 +161,7 @@ struct MyView: View {
         .alert("关于我们", isPresented: $showAbout) {
             Button("确定") {}
         } message: {
-            Text("创普AI v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.90")\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
+            Text("创普AI v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.91")\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
         }
     }
     
@@ -178,27 +177,26 @@ struct MyView: View {
         .frame(maxWidth: .infinity)
     }
     
-    private func menuItem(icon: String, title: String, color: Color) -> some View {
+    // 宫格功能项（图标上 + 名称下，对齐安卓更多功能区）
+    private func gridItem(icon: String, title: String, color: Color) -> some View {
         Button(action: {}) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(color)
-                    .frame(width: 28)
+            VStack(spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundColor(color)
+                }
                 
                 Text(title)
-                    .font(.system(size: 16))
+                    .font(.system(size: 12))
                     .foregroundColor(.white)
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundColor(Constants.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
-            .background(Constants.bgSecondary)
+            .frame(maxWidth: .infinity)
         }
     }
 }
