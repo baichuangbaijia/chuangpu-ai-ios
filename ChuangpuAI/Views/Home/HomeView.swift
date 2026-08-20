@@ -16,6 +16,7 @@ struct HomeView: View {
     @State private var glowPhase: Double = 0.4
     @State private var showChat = false
     @FocusState private var inputFocused: Bool
+    @State private var isKeyboardUp = false
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -36,14 +37,23 @@ struct HomeView: View {
                 inputBar
                     .padding(.horizontal, hPadding)
 
-                // 首页下区：6 快捷卡片 + 平台接入（常驻）
-                homeBottom
+                // 首页下区：6 快捷卡片 + 平台接入（2.0.96：键盘弹起让位隐藏，输入栏贴键盘顶）
+                if !isKeyboardUp {
+                    homeBottom
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Constants.bgPrimary.ignoresSafeArea())
             // 2.0.95：首页点空白收键盘（对齐新对话页 2.0.88 做法）
             .contentShape(Rectangle())
             .onTapGesture { if inputFocused { inputFocused = false } }
+            // 2.0.96：键盘弹起下区让位隐藏，收起恢复；输入栏由系统避让自动贴键盘顶
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                withAnimation(.easeOut(duration: 0.25)) { isKeyboardUp = true }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                withAnimation(.easeOut(duration: 0.25)) { isKeyboardUp = false }
+            }
             .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
             .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
             .onAppear { currentModel = authManager.getCurrentModel(); inputFocused = false; startAnimations() }
