@@ -64,13 +64,14 @@ struct HomeView: View {
         .padding(.top, 4)
     }
 
-    // 首页下区：6 快捷卡片 + 平台接入（在输入框下方）
+    // 首页下区：6 快捷卡片 + 平台接入（在输入框下方；顶部 16pt 与输入栏分隔，避免视觉粘连）
     private var homeBottom: some View {
         VStack(spacing: itemSpacing) {
             quickSkillsArea
             platformArea
         }
         .padding(.horizontal, hPadding)
+        .padding(.top, 16)
         .padding(.bottom, 16)
     }
 
