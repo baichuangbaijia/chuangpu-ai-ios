@@ -196,8 +196,6 @@ struct HomeView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Constants.bgTertiary)
-        .cornerRadius(24)
         .frame(maxWidth: .infinity)
         .background(
             GeometryReader { geo in
@@ -206,6 +204,8 @@ struct HomeView: View {
         )
         .onPreferenceChange(InputBarHeightKey.self) { barHeight = $0 }
         .frame(height: inputFocused ? barHeight * 2 : nil, alignment: .bottom)
+        .background(Constants.bgTertiary)
+        .cornerRadius(24)
         .animation(.easeOut(duration: 0.25), value: inputFocused)
     }
 
