@@ -17,6 +17,8 @@ struct HomeView: View {
     @State private var showChat = false
     @FocusState private var inputFocused: Bool
     @State private var isKeyboardUp = false
+    // 2.1.4：键盘最终高度（从键盘通知一次性获取，动画期间值不变，用于预计算输入栏拉伸高度）
+    @State private var keyboardHeight: CGFloat = 0
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -24,7 +26,7 @@ struct HomeView: View {
 
     var body: some View {
         // 2.0.95：去掉导航栈改 ZStack 手动全屏切换（规避 iOS16 导航栈根视图输入框键盘不弹）
-        // 2.1.3：外包 GeometryReader 获取键盘弹起后的可用高度，输入栏聚焦时按剩余空间自适应拉伸（上限两倍），上区不动
+        // 2.1.4：外包 GeometryReader 仅读取安全区顶部高度（常量，非逐帧测量）；输入栏聚焦高度改用键盘通知预计算，动画与键盘同步
         GeometryReader { geo in
         ZStack {
             VStack(spacing: 0) {
@@ -36,7 +38,7 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 // 输入框（2.0.94：点击聚焦就地输入不跳转，固定一行不拉伸；点发送才跳转新对话页）
-                inputBar(maxHeight: geo.size.height)
+                inputBar(topSafe: geo.safeAreaInsets.top)
                     .padding(.horizontal, hPadding)
 
                 // 首页下区：6 快捷卡片 + 平台接入（2.0.96：键盘弹起让位隐藏，输入栏贴键盘顶）
@@ -50,11 +52,23 @@ struct HomeView: View {
             .contentShape(Rectangle())
             .onTapGesture { if inputFocused { inputFocused = false } }
             // 2.0.96：键盘弹起下区让位隐藏，收起恢复；输入栏由系统避让自动贴键盘顶
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                withAnimation(.easeOut(duration: 0.25)) { isKeyboardUp = true }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+                // 2.1.4：一次性取键盘最终高度与动画时长，输入栏拉伸与键盘同动画同速，杜绝冲高回落/闪烁
+                let info = note.userInfo
+                let kbH = (info?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
+                let kbDur = (info?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+                withAnimation(.easeOut(duration: kbDur)) {
+                    isKeyboardUp = true
+                    keyboardHeight = kbH
+                }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                withAnimation(.easeOut(duration: 0.25)) { isKeyboardUp = false }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+                // 2.1.4：收起同样用键盘通知时长，反向对称
+                let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+                withAnimation(.easeOut(duration: kbDur)) {
+                    isKeyboardUp = false
+                    keyboardHeight = 0
+                }
             }
             .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
             .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
@@ -147,8 +161,8 @@ struct HomeView: View {
         .padding(.horizontal, 8)
     }
 
-    // 输入框（2.1.3）：点击聚焦就地输入不跳转；聚焦时按剩余空间自适应向上拉伸（上限两倍 200pt），上区（龙虾/按钮/文案）不动只挤压留白；标签行固定下方不上浮；点发送才跳转新对话页
-    private func inputBar(maxHeight: CGFloat) -> some View {
+    // 输入框（2.1.4）：点击聚焦就地输入不跳转；聚焦时等键盘通知到达后按剩余空间自适应拉伸（上限两倍 200pt），上区（龙虾/按钮/文案）不动只挤压留白；拉伸与键盘同动画同速不再闪；标签行固定下方不上浮；点发送才跳转新对话页
+    private func inputBar(topSafe: CGFloat) -> some View {
         VStack(spacing: 10) {
             // 输入行：输入框（固定一行）+ 发送键（点发送带内容跳转）
             HStack(spacing: 10) {
@@ -173,18 +187,18 @@ struct HomeView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
-        // 2.1.3：自适应拉伸（上限两倍 200pt，空间不够自动降低，永不溢出）；内容贴底，标签行在下方
-        .frame(height: inputFocused ? stretchedInputHeight(maxHeight) : nil, alignment: .bottom)
+        // 2.1.4：键盘弹起后自适应拉伸（目标高度预计算，动画与键盘同步，永不溢出）；键盘未弹起时保持原高，杜绝冲高回落
+        .frame(height: inputFocused && keyboardHeight > 0 ? stretchedInputHeight(topSafe: topSafe) : nil, alignment: .bottom)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
-        .animation(.easeOut(duration: 0.25), value: inputFocused)
     }
 
-    // 2.1.3：输入栏聚焦高度 = min(两倍 200, 屏幕剩余空间 - 固定上区)，能拉多高拉多高、上区不动
-    private func stretchedInputHeight(_ total: CGFloat) -> CGFloat {
+    // 2.1.4：输入栏聚焦高度 = min(两倍 200, 全屏高度 - 安全区顶 - 键盘高 - 固定上区)；键盘通知到达时一次性算好，动画期间值不变，能拉多高拉多高、上区不动
+    private func stretchedInputHeight(topSafe: CGFloat) -> CGFloat {
+        let available = UIScreen.main.bounds.height - topSafe - keyboardHeight
         // 固定上区：topBar(~40) + homeTop padding top(4) + 龙虾(heroHeight) + spacing(8) + 开始养虾按钮组(50+8+16=74) + 最小留白(8)
         let fixedTop: CGFloat = 40 + 4 + heroHeight + itemSpacing + 74 + itemSpacing
-        return min(200, max(93, total - fixedTop))
+        return min(200, max(93, available - fixedTop))
     }
 
     // 标签行：定时任务 / 选择模型（2.0.99 抽出复用；聚焦时上浮到输入行上方，未聚焦在输入行下方）
