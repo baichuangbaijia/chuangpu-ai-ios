@@ -24,6 +24,8 @@ struct HomeView: View {
 
     var body: some View {
         // 2.0.95：去掉导航栈改 ZStack 手动全屏切换（规避 iOS16 导航栈根视图输入框键盘不弹）
+        // 2.1.3：外包 GeometryReader 获取键盘弹起后的可用高度，输入栏聚焦时按剩余空间自适应拉伸（上限两倍），上区不动
+        GeometryReader { geo in
         ZStack {
             VStack(spacing: 0) {
                 topBar
@@ -34,7 +36,7 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 // 输入框（2.0.94：点击聚焦就地输入不跳转，固定一行不拉伸；点发送才跳转新对话页）
-                inputBar
+                inputBar(maxHeight: geo.size.height)
                     .padding(.horizontal, hPadding)
 
                 // 首页下区：6 快捷卡片 + 平台接入（2.0.96：键盘弹起让位隐藏，输入栏贴键盘顶）
@@ -66,6 +68,7 @@ struct HomeView: View {
                 .transition(.move(edge: .trailing))
                 .zIndex(1)
             }
+        }
         }
     }
 
@@ -103,15 +106,18 @@ struct HomeView: View {
         .padding(.bottom, 4)
     }
 
-    // 主视觉：红色大龙虾（高度按屏幕比例自适应，钳制 170~300）
+    // 龙虾主视觉高度（按屏幕比例自适应，钳制 100~200）
+    private var heroHeight: CGFloat {
+        min(max(UIScreen.main.bounds.height * 0.18, 100), 200)
+    }
+
+    // 主视觉：红色大龙虾（2.1.3：键盘弹起不再压缩，恒等原高 → 开始养虾按钮与 7×24 文案位置不动）
     private var lobsterHero: some View {
-        let heroH = min(max(UIScreen.main.bounds.height * 0.18, 100), 200)
-        // 2.1.1：键盘弹起时龙虾压缩到 40%（不低于 40pt），给输入栏延伸腾空间（上区挤压），开始养虾按钮不动
-        return Image("lobster")
+        Image("lobster")
             .resizable()
             .scaledToFit()
             .frame(maxWidth: .infinity)
-            .frame(height: isKeyboardUp ? max(heroH * 0.4, 40) : heroH)
+            .frame(height: heroHeight)
     }
 
     private func getModelName(_ id: String) -> String {
@@ -141,8 +147,8 @@ struct HomeView: View {
         .padding(.horizontal, 8)
     }
 
-    // 输入框（2.1.2）：点击聚焦就地输入不跳转；聚焦时向上拉伸到固定两倍高（200pt）挤压上方；标签行固定下方不上浮；点发送才跳转新对话页
-    private var inputBar: some View {
+    // 输入框（2.1.3）：点击聚焦就地输入不跳转；聚焦时按剩余空间自适应向上拉伸（上限两倍 200pt），上区（龙虾/按钮/文案）不动只挤压留白；标签行固定下方不上浮；点发送才跳转新对话页
+    private func inputBar(maxHeight: CGFloat) -> some View {
         VStack(spacing: 10) {
             // 输入行：输入框（固定一行）+ 发送键（点发送带内容跳转）
             HStack(spacing: 10) {
@@ -167,11 +173,18 @@ struct HomeView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
-        // 2.1.2：固定两倍高拉伸（内容约102pt → 聚焦200pt），不依赖测量，点击必变高；内容贴底，标签行在下方
-        .frame(height: inputFocused ? 200 : nil, alignment: .bottom)
+        // 2.1.3：自适应拉伸（上限两倍 200pt，空间不够自动降低，永不溢出）；内容贴底，标签行在下方
+        .frame(height: inputFocused ? stretchedInputHeight(maxHeight) : nil, alignment: .bottom)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .animation(.easeOut(duration: 0.25), value: inputFocused)
+    }
+
+    // 2.1.3：输入栏聚焦高度 = min(两倍 200, 屏幕剩余空间 - 固定上区)，能拉多高拉多高、上区不动
+    private func stretchedInputHeight(_ total: CGFloat) -> CGFloat {
+        // 固定上区：topBar(~40) + homeTop padding top(4) + 龙虾(heroHeight) + spacing(8) + 开始养虾按钮组(50+8+16=74) + 最小留白(8)
+        let fixedTop: CGFloat = 40 + 4 + heroHeight + itemSpacing + 74 + itemSpacing
+        return min(200, max(93, total - fixedTop))
     }
 
     // 标签行：定时任务 / 选择模型（2.0.99 抽出复用；聚焦时上浮到输入行上方，未聚焦在输入行下方）
