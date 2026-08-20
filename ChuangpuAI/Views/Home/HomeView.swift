@@ -14,45 +14,36 @@ struct HomeView: View {
     @State private var showModelSelector = false
     @State private var showSidebar = false
     @State private var glowPhase: Double = 0.4
-    @FocusState private var inputFocused: Bool
-    @State private var messages: [ChatMessage] = []
+    @State private var showChat = false
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
     private let itemSpacing: CGFloat = 8
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-            // 内容区：聊天模式显示聊天记录，首页模式显示首页卡片（都不含输入框）
-            Group {
-                if inputFocused {
-                    // 聊天模式：聊天区占满输入栏上方，独立滚动，点空白收键盘
-                    chatHistoryArea
-                        .scrollDismissesKeyboard(.interactively)
-                        .contentShape(Rectangle())
-                        .onTapGesture { inputFocused = false }
-                } else {
-                    // 首页模式：龙虾/按钮/弹性空白（不含输入框，输入框常驻下方）
+        NavigationStack {
+            VStack(spacing: 0) {
+                topBar
+                // 首页模式常驻：龙虾/按钮/弹性空白（2.0.93 输入跳转独立对话页，不再就地切换聊天）
+                Group {
                     homeTop
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 输入框常驻（VStack 第 3 元素，永不销毁；未聚焦时位于 6 卡片上方，聚焦时贴键盘顶）
-            inputBar
-                .padding(.horizontal, hPadding)
+                // 伪输入框（2.0.93：点击跳转独立对话页，不在首页输入，固定高度不拉伸）
+                inputBar
+                    .padding(.horizontal, hPadding)
 
-            // 首页下区：6 快捷卡片 + 平台接入（聚焦时隐藏；非输入框，切换销毁无副作用）
-            if !inputFocused {
+                // 首页下区：6 快捷卡片 + 平台接入（常驻）
                 homeBottom
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Constants.bgPrimary.ignoresSafeArea())
+            .navigationDestination(isPresented: $showChat) { ChatConversationView(initialText: inputText) }
+            .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
+            .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
+            .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Constants.bgPrimary.ignoresSafeArea())
-        .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
-        .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
-        .onAppear { currentModel = authManager.getCurrentModel(); startAnimations() }
     }
 
     // 首页上区：龙虾/开始养虾/弹性空白（占满，把输入框顶到 6 卡片上方）
@@ -126,23 +117,26 @@ struct HomeView: View {
         .padding(.horizontal, 8)
     }
 
-    // 聊天框（放大版）：输入行 + 发送键 + 标签行（定时任务/模型）都在框内
+    // 伪输入框（2.0.93）：点击跳转独立对话页，不在首页输入；固定一行不拉伸
     private var inputBar: some View {
         VStack(spacing: 10) {
-            // 输入行：输入框 + 发送键（左侧无图标）
-            HStack(spacing: 10) {
-                TextField("分配一个任务或提问任何问题", text: $inputText, axis: .vertical)
-                    .lineLimit(1...5)
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-                    .focused($inputFocused)
-                Button(action: sendMessage) {
-                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
+            // 输入行（伪输入框）：点击跳转新对话页；6 卡片点选填词显示于此
+            Button(action: { showChat = true }) {
+                HStack(spacing: 10) {
+                    Text(inputText.isEmpty ? "分配一个任务或提问任何问题" : inputText)
+                        .font(.system(size: 16))
+                        .foregroundColor(inputText.isEmpty ? Constants.textSecondary : .white)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(Constants.accentOrange)
                 }
-                .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
+            .buttonStyle(.plain)
 
             // 标签行：定时任务 / 选择模型（在聊天框内）
             HStack(spacing: 12) {
@@ -239,109 +233,6 @@ struct HomeView: View {
         }
     }
 
-    // 聊天记录区（聚焦时显示，自动占满输入栏上方空间，独立滚动）
-    private var chatHistoryArea: some View {
-        Group {
-            if messages.isEmpty {
-                emptyChatGuide
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 10) {
-                            ForEach(messages) { msg in
-                                chatBubble(msg)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .onChange(of: messages.count) { _ in
-                        if let last = messages.last {
-                            withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(last.id, anchor: .bottom) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 空状态引导：品牌问候 + 派活卡片（messages 为空时显示，点击卡片自动填入输入框）
-    private var emptyChatGuide: some View {
-        VStack(spacing: 24) {
-            Spacer(minLength: 0)
-            VStack(spacing: 6) {
-                Text("🦞 一人成军 · AI 相助")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                Text("向你的 AI 员工派活吧")
-                    .font(.system(size: 13))
-                    .foregroundColor(Constants.textSecondary)
-            }
-            VStack(spacing: 10) {
-                taskCard(icon: "doc.text", title: "帮我写一份工作周报")
-                taskCard(icon: "chart.bar", title: "帮我分析这份销售数据")
-                taskCard(icon: "globe", title: "帮我做个公司官网")
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 16)
-    }
-
-    // 派活卡片：点击自动填入输入框（不直接发送，用户确认后按发送）
-    private func taskCard(icon: String, title: String) -> some View {
-        Button(action: { inputText = title }) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 15))
-                    .foregroundColor(Constants.accentOrange)
-                Text(title)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white)
-                Spacer(minLength: 0)
-                Image(systemName: "arrow.up.left")
-                    .font(.system(size: 11))
-                    .foregroundColor(Constants.textSecondary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .frame(maxWidth: .infinity)
-            .background(Constants.bgSecondary.opacity(0.6))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
-        }
-    }
-
-    // 聊天气泡：用户消息右侧紫色，AI 回复左侧深色
-    private func chatBubble(_ msg: ChatMessage) -> some View {
-        HStack {
-            if msg.isUser { Spacer(minLength: 40) }
-            Text(msg.text)
-                .font(.system(size: 14))
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(msg.isUser ? Constants.primaryPurple : Constants.bgTertiary)
-                .cornerRadius(14)
-            if !msg.isUser { Spacer(minLength: 40) }
-        }
-        .id(msg.id)
-    }
-
-    // 发送消息（本地演示版：上屏+模拟AI回复，接真实接口后替换）
-    private func sendMessage() {
-        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        messages.append(ChatMessage(text: text, isUser: true))
-        inputText = ""
-        inputFocused = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            messages.append(ChatMessage(text: "收到，我马上帮你处理「\(text)」（演示回复，接入接口后自动替换）", isUser: false))
-        }
-    }
-
     private func startAnimations() {
         withAnimation(.easeInOut(duration: 1.25).repeatForever(autoreverses: true)) { glowPhase = 0.7 }
     }
@@ -376,5 +267,189 @@ struct ModelSelectorSheet: View {
                 if m.0 == currentModel { Text("\u{2713}").font(.system(size: 16, weight: .medium)).foregroundColor(Constants.primaryPurple) }
             }.padding(.horizontal, 16).padding(.vertical, 16).background(m.0 == currentModel ? Constants.primaryPurple.opacity(0.15) : Constants.bgSecondary).cornerRadius(12)
         }.disabled(!m.2).opacity(m.2 ? 1 : 0.6)
+    }
+}
+
+
+// 独立对话页（2.0.93）：点首页输入框跳转进入，顶部返回键；输入框固定单行不自动拉伸
+struct ChatConversationView: View {
+    @EnvironmentObject var authManager: AuthManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var inputText: String
+    @State private var currentModel = "deepseek-v4-flash"
+    @State private var showModelSelector = false
+    @State private var messages: [ChatMessage] = []
+    @FocusState private var inputFocused: Bool
+
+    init(initialText: String = "") {
+        _inputText = State(initialValue: initialText)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 顶部导航栏：返回 + 标题（对标微信对话页）
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                Spacer()
+                Text("新对话").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                Spacer()
+                Color.clear.frame(width: 44, height: 44)
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+            .padding(.bottom, 4)
+
+            // 聊天区：空状态问候 / 消息气泡；点空白收键盘
+            Group {
+                if messages.isEmpty {
+                    emptyChatGuide
+                } else {
+                    chatHistoryArea
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { inputFocused = false }
+
+            // 输入框（固定单行，不自动拉伸）+ 标签行
+            inputBar
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+        }
+        .background(Constants.bgPrimary.ignoresSafeArea())
+        .navigationBarHidden(true)
+        .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
+        .onAppear {
+            currentModel = authManager.getCurrentModel()
+            // 跳转后自动聚焦弹出键盘（与微信点搜索框跳转一致）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { inputFocused = true }
+        }
+    }
+
+    // 空状态引导：品牌问候（无快捷输入卡片）
+    private var emptyChatGuide: some View {
+        VStack(spacing: 6) {
+            Spacer(minLength: 0)
+            Text("🦞 一人成军 · AI 相助")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+            Text("向你的 AI 员工派活吧")
+                .font(.system(size: 13))
+                .foregroundColor(Constants.textSecondary)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 16)
+    }
+
+    // 聊天记录区：消息列表自动滚动到底
+    private var chatHistoryArea: some View {
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 10) {
+                    ForEach(messages) { msg in
+                        chatBubble(msg)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: messages.count) { _ in
+                if let last = messages.last {
+                    withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+            }
+        }
+    }
+
+    // 输入框：固定单行（lineLimit 1）不自动拉伸；发送键 + 标签行（定时任务/模型）
+    private var inputBar: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                TextField("分配一个任务或提问任何问题", text: $inputText)
+                    .lineLimit(1)
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+                    .focused($inputFocused)
+                    .submitLabel(.send)
+                    .onSubmit { sendMessage() }
+                Button(action: sendMessage) {
+                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
+                }
+                .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+
+            // 标签行：定时任务 / 选择模型
+            HStack(spacing: 12) {
+                Button(action: {}) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar").font(.system(size: 10))
+                        Text("定时任务").font(.system(size: 11))
+                    }
+                    .foregroundColor(Constants.accentOrange)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Constants.accentOrange.opacity(0.15))
+                    .cornerRadius(12)
+                }
+                Button(action: { showModelSelector = true }) {
+                    HStack(spacing: 4) {
+                        Circle().fill(Constants.accentGreen).frame(width: 5, height: 5)
+                        Text(getModelName(currentModel)).font(.system(size: 11))
+                    }
+                    .foregroundColor(Constants.textSecondary)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Constants.bgSecondary)
+                    .cornerRadius(12)
+                }
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Constants.bgTertiary)
+        .cornerRadius(24)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func getModelName(_ id: String) -> String {
+        let m: [(String, String)] = [("deepseek-v4-flash","DeepSeek-V4-Flash"),("deepseek-v3","DeepSeek V3"),("kimi-2.5","Kimi 2.5"),("glm-5","GLM-5"),("minimax-m2.5","MiniMax M2.5"),("doubao-2.0","豆包 2.0")]
+        for item in m { if item.0 == id { return item.1 } }
+        return "DeepSeek-V4-Flash"
+    }
+
+    // 聊天气泡：用户消息右侧紫色，AI 回复左侧深色
+    private func chatBubble(_ msg: ChatMessage) -> some View {
+        HStack {
+            if msg.isUser { Spacer(minLength: 40) }
+            Text(msg.text)
+                .font(.system(size: 14))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(msg.isUser ? Constants.primaryPurple : Constants.bgTertiary)
+                .cornerRadius(14)
+            if !msg.isUser { Spacer(minLength: 40) }
+        }
+        .id(msg.id)
+    }
+
+    // 发送消息（本地演示版：上屏+模拟AI回复，接真实接口后替换）
+    private func sendMessage() {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        messages.append(ChatMessage(text: text, isUser: true))
+        inputText = ""
+        inputFocused = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            messages.append(ChatMessage(text: "收到，我马上帮你处理「\(text)」（演示回复，接入接口后自动替换）", isUser: false))
+        }
     }
 }
