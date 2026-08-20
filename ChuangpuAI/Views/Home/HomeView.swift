@@ -130,7 +130,8 @@ struct HomeView: View {
         VStack(spacing: 10) {
             // 输入行：输入框 + 发送键（左侧无图标）
             HStack(spacing: 10) {
-                TextField("分配一个任务或提问任何问题", text: $inputText)
+                TextField("分配一个任务或提问任何问题", text: $inputText, axis: .vertical)
+                    .lineLimit(1...5)
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                     .focused($inputFocused)
@@ -239,20 +240,76 @@ struct HomeView: View {
 
     // 聊天记录区（聚焦时显示，自动占满输入栏上方空间，独立滚动）
     private var chatHistoryArea: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 10) {
-                    ForEach(messages) { msg in
-                        chatBubble(msg)
+        Group {
+            if messages.isEmpty {
+                emptyChatGuide
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(spacing: 10) {
+                            ForEach(messages) { msg in
+                                chatBubble(msg)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .onChange(of: messages.count) { _ in
+                        if let last = messages.last {
+                            withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(last.id, anchor: .bottom) }
+                        }
                     }
                 }
-                .padding(.vertical, 4)
             }
-            .onChange(of: messages.count) { _ in
-                if let last = messages.last {
-                    withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(last.id, anchor: .bottom) }
-                }
+        }
+    }
+
+    // 空状态引导：品牌问候 + 派活卡片（messages 为空时显示，点击卡片自动填入输入框）
+    private var emptyChatGuide: some View {
+        VStack(spacing: 24) {
+            Spacer(minLength: 0)
+            VStack(spacing: 6) {
+                Text("🦞 一人成军 · AI 相助")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                Text("向你的 AI 员工派活吧")
+                    .font(.system(size: 13))
+                    .foregroundColor(Constants.textSecondary)
             }
+            VStack(spacing: 10) {
+                taskCard(icon: "doc.text", title: "帮我写一份工作周报")
+                taskCard(icon: "chart.bar", title: "帮我分析这份销售数据")
+                taskCard(icon: "globe", title: "帮我做个公司官网")
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 16)
+    }
+
+    // 派活卡片：点击自动填入输入框（不直接发送，用户确认后按发送）
+    private func taskCard(icon: String, title: String) -> some View {
+        Button(action: { inputText = title }) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundColor(Constants.accentOrange)
+                Text(title)
+                    .font(.system(size: 14))
+                    .foregroundColor(.white)
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.left")
+                    .font(.system(size: 11))
+                    .foregroundColor(Constants.textSecondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .frame(maxWidth: .infinity)
+            .background(Constants.bgSecondary.opacity(0.6))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
         }
     }
 
