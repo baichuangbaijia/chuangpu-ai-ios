@@ -115,11 +115,12 @@ struct HomeView: View {
     // 主视觉：红色大龙虾（高度按屏幕比例自适应，钳制 170~300）
     private var lobsterHero: some View {
         let heroH = min(max(UIScreen.main.bounds.height * 0.18, 100), 200)
+        // 2.1.1：键盘弹起时龙虾压缩到 40%（不低于 40pt），给输入栏延伸腾空间（上区挤压），开始养虾按钮不动
         return Image("lobster")
             .resizable()
             .scaledToFit()
             .frame(maxWidth: .infinity)
-            .frame(height: heroH)
+            .frame(height: isKeyboardUp ? max(heroH * 0.4, 40) : heroH)
     }
 
     private func getModelName(_ id: String) -> String {
@@ -184,7 +185,7 @@ struct HomeView: View {
             }
         )
         .onPreferenceChange(InputBarHeightKey.self) { if $0 > 20 && $0 < 200 { barHeight = $0 } }
-        .frame(height: inputFocused ? barHeight * 2 : nil, alignment: .bottom)
+        .frame(height: inputFocused && barHeight > 0 ? barHeight * 2 : nil, alignment: .bottom)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .animation(.easeOut(duration: 0.25), value: inputFocused)
