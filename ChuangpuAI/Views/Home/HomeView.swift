@@ -19,6 +19,8 @@ struct HomeView: View {
     @State private var showSidebar = false
     @State private var glowPhase: Double = 0.4
     @State private var showChat = false
+    // 2.1.9：对话页全屏状态回调（通知 MainTabView 隐藏/恢复底部 TabBar，大厂二级页效果）
+    var onChatPresentedChanged: ((Bool) -> Void)? = nil
     @FocusState private var inputFocused: Bool
     @State private var isKeyboardUp = false
     // 2.1.5：键盘弹起目标拉伸高度（键盘通知到达瞬间一次性预计算，动画期间锁死为常量不再重算 → 收起不晃）
@@ -90,6 +92,10 @@ struct HomeView: View {
             .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
             .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
             .onAppear { currentModel = authManager.getCurrentModel(); inputFocused = false; startAnimations() }
+            // 2.1.9：对话页显隐变化 → 通知 MainTabView 隐藏/恢复 TabBar（覆盖全部入口：发送/开始养虾/返回）
+            .onChange(of: showChat) { newValue in
+                onChatPresentedChanged?(newValue)
+            }
 
             // 2.0.95：跳转新对话页用 ZStack 全屏覆盖（不依赖导航栈），返回回调关掉覆盖层
             if showChat {
