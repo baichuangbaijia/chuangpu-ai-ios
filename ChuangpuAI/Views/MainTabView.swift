@@ -29,7 +29,12 @@ struct MainTabView: View {
                     withAnimation(.easeInOut(duration: 0.25)) { showDrawer = true }
                 }) }
                 else if selectedTab == 1 { SkillView() }
-                else { MyView() }
+                else {
+                    // 2.1.18：MyView 包 NavigationStack（宫格 push 页面带返回）+ 传切 tab 回调（技能市场宫格）
+                    NavigationStack {
+                        MyView(onSwitchTab: { index in selectedTab = index })
+                    }
+                }
             }
             .padding(.bottom, (isKeyboardUp || hideTabBar) ? 0 : tabBarHeight) // 键盘弹起或对话页全屏(TabBar隐藏)时不留白
             .frame(maxWidth: .infinity, maxHeight: .infinity)

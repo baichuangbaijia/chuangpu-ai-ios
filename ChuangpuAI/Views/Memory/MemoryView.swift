@@ -1,42 +1,47 @@
 import SwiftUI
 
-/// 记忆页面
+/// 2.1.18：我的AI记忆页（我的 → 我的AI记忆）对齐安卓截图：搜索框"搜索记忆内容" + 幽灵空态"暂无记忆内容" + 列表删除
+/// 方案A：只做 列表+搜索+删除，不做添加/详情/编辑（截图空态：👻 幽灵 emoji + 暂无记忆内容）
 struct MemoryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var memories: [Memory] = []
     @State private var isLoading = false
-    @State private var newMemoryText = ""
-    @State private var showAddSheet = false
+    @State private var searchText = ""
     @State private var showDeleteAlert = false
     @State private var memoryToDelete: Memory?
+    
+    // 本地过滤（方案A：不动后端，关键词过滤 content）
+    private var filteredMemories: [Memory] {
+        if searchText.isEmpty {
+            return memories
+        }
+        return memories.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
+    }
     
     var body: some View {
         ZStack {
             Constants.bgPrimary.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 顶部导航
+                // 顶部导航（标题"我的AI记忆"，去掉原"记忆库"+右侧加号）
                 navBar
+                
+                // 搜索框（对齐截图占位文案"搜索记忆内容"）
+                searchField
                 
                 if isLoading && memories.isEmpty {
                     Spacer()
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: Constants.primaryPurple))
                     Spacer()
-                } else if memories.isEmpty {
+                } else if filteredMemories.isEmpty {
                     emptyState
                 } else {
                     memoriesList
                 }
-                
-                // 底部添加按钮
-                addButton
             }
         }
         .navigationBarHidden(true)
-        .sheet(isPresented: $showAddSheet) {
-            addMemorySheet
-        }
         .alert("删除记忆", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) {
@@ -62,37 +67,47 @@ struct MemoryView: View {
             
             Spacer()
             
-            Text("记忆库")
+            Text("我的AI记忆")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.white)
             
             Spacer()
             
-            Button(action: { showAddSheet = true }) {
-                Image(systemName: "plus")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-            }
+            // 右侧占位保持标题居中（原加号按钮已删）
+            Color.clear.frame(width: 20)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
+    }
+    
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14))
+                .foregroundColor(Constants.textSecondary)
+            TextField("搜索记忆内容", text: $searchText)
+                .font(.system(size: 14))
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Constants.bgTertiary)
+        .cornerRadius(10)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
     }
     
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
             
-            Image(systemName: "brain")
-                .font(.system(size: 60))
-                .foregroundColor(Constants.textSecondary)
+            // 幽灵 emoji（对齐截图空态，彩色 emoji 深色底显示正常）
+            Text("👻")
+                .font(.system(size: 64))
             
-            Text("暂无记忆")
-                .font(.system(size: 17))
+            Text(searchText.isEmpty ? "暂无记忆内容" : "没有找到匹配的记忆")
+                .font(.system(size: 16))
                 .foregroundColor(Constants.textSecondary)
-            
-            Text("添加记忆让我更懂你")
-                .font(.system(size: 14))
-                .foregroundColor(Constants.textSecondary.opacity(0.7))
             
             Spacer()
         }
@@ -101,7 +116,7 @@ struct MemoryView: View {
     private var memoriesList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(memories) { memory in
+                ForEach(filteredMemories) { memory in
                     memoryCard(memory)
                 }
             }
@@ -141,69 +156,6 @@ struct MemoryView: View {
         .cornerRadius(12)
     }
     
-    private var addButton: some View {
-        Button(action: { showAddSheet = true }) {
-            HStack {
-                Image(systemName: "plus.circle.fill")
-                Text("添加记忆")
-            }
-            .font(.system(size: 15, weight: .medium))
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Constants.primaryPurple)
-            .cornerRadius(12)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Constants.bgSecondary)
-    }
-    
-    private var addMemorySheet: some View {
-        NavigationStack {
-            ZStack {
-                Constants.bgPrimary.ignoresSafeArea()
-                
-                VStack(spacing: 20) {
-                    TextEditor(text: $newMemoryText)
-                        .scrollContentBackground(.hidden)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Constants.bgTertiary)
-                        .cornerRadius(12)
-                        .frame(minHeight: 150)
-                    
-                    Text("记忆将帮助AI更好地了解你，提供更个性化的回答")
-                        .font(.system(size: 13))
-                        .foregroundColor(Constants.textSecondary)
-                    
-                    Spacer()
-                }
-                .padding()
-            }
-            .navigationTitle("添加记忆")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
-                        newMemoryText = ""
-                        showAddSheet = false
-                    }
-                    .foregroundColor(Constants.textSecondary)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("保存") {
-                        addMemory()
-                    }
-                    .foregroundColor(Constants.primaryPurple)
-                    .disabled(newMemoryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-        .presentationDetents([.medium])
-    }
-    
     private func formatDate(_ dateString: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -230,24 +182,6 @@ struct MemoryView: View {
                 await MainActor.run {
                     isLoading = false
                 }
-            }
-        }
-    }
-    
-    private func addMemory() {
-        let content = newMemoryText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
-        
-        Task {
-            do {
-                _ = try await APIService.shared.addMemory(content: content)
-                await MainActor.run {
-                    newMemoryText = ""
-                    showAddSheet = false
-                    loadMemories()
-                }
-            } catch {
-                print("添加记忆失败: \(error)")
             }
         }
     }
