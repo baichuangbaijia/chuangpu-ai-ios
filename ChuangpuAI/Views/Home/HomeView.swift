@@ -10,6 +10,8 @@ struct ChatMessage: Identifiable {
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var inputText = ""
+    // 2.1.7：跳转对话页前暂存发送原文（先暂存再清空 inputText，对话页渲染时读 pendingText 上屏）
+    @State private var pendingText = ""
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
     @State private var showSidebar = false
@@ -89,7 +91,7 @@ struct HomeView: View {
 
             // 2.0.95：跳转新对话页用 ZStack 全屏覆盖（不依赖导航栈），返回回调关掉覆盖层
             if showChat {
-                ChatConversationView(initialText: inputText, onClose: {
+                ChatConversationView(initialText: pendingText, onClose: {
                     withAnimation(.easeInOut(duration: 0.25)) { showChat = false }
                 })
                 .transition(.move(edge: .trailing))
@@ -247,6 +249,8 @@ struct HomeView: View {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         inputFocused = false
+        pendingText = inputText  // 2.1.7：先暂存原文（对话页渲染时读取）
+        inputText = ""           // 2.1.7：发送后清空首页输入框（返回首页不再残留已发送文字）
         withAnimation(.easeInOut(duration: 0.25)) { showChat = true }
     }
 
