@@ -12,6 +12,8 @@ struct HomeView: View {
     @State private var inputText = ""
     // 2.1.7：跳转对话页前暂存发送原文（先暂存再清空 inputText，对话页渲染时读 pendingText 上屏）
     @State private var pendingText = ""
+    // 2.1.8：对话页标题（开始养虾入口="创普AI助手"，发送入口=nil 显示"新对话"）
+    @State private var chatTitle: String? = nil
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
     @State private var showSidebar = false
@@ -91,7 +93,7 @@ struct HomeView: View {
 
             // 2.0.95：跳转新对话页用 ZStack 全屏覆盖（不依赖导航栈），返回回调关掉覆盖层
             if showChat {
-                ChatConversationView(initialText: pendingText, onClose: {
+                ChatConversationView(initialText: pendingText, welcomeTitle: chatTitle, onClose: {
                     withAnimation(.easeInOut(duration: 0.25)) { showChat = false }
                 })
                 .transition(.move(edge: .trailing))
@@ -158,7 +160,7 @@ struct HomeView: View {
     // 「开始养虾」大按钮 + 副文案（紧贴龙虾下方）
     private var startYangXiaBtn: some View {
         VStack(spacing: 8) {
-            Button(action: {}) {
+            Button(action: { jumpToYangXia() }) {
                 HStack(spacing: 10) {
                     Text("\u{1F99E}").font(.system(size: 22))
                     Text("开始养虾").font(.system(size: 16, weight: .bold))
@@ -249,8 +251,17 @@ struct HomeView: View {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         inputFocused = false
+        chatTitle = nil  // 2.1.8：发送入口标题走默认"新对话"
         pendingText = inputText  // 2.1.7：先暂存原文（对话页渲染时读取）
         inputText = ""           // 2.1.7：发送后清空首页输入框（返回首页不再残留已发送文字）
+        withAnimation(.easeInOut(duration: 0.25)) { showChat = true }
+    }
+
+    // 2.1.8：开始养虾 → 跳转对话页欢迎态（空对话显示欢迎区：主标语/问候/功能卡片）
+    private func jumpToYangXia() {
+        inputFocused = false
+        pendingText = ""  // 2.1.8：清空暂存（欢迎态不带上一条发送内容）
+        chatTitle = "创普AI助手"
         withAnimation(.easeInOut(duration: 0.25)) { showChat = true }
     }
 
@@ -360,6 +371,8 @@ struct ChatConversationView: View {
     @EnvironmentObject var authManager: AuthManager
     // 2.0.95：无导航栈，返回用回调
     let onClose: () -> Void
+    // 2.1.8：对话页标题（nil=默认"新对话"；非空=显示该标题+在线状态，如"创普AI助手"）
+    let welcomeTitle: String?
     @State private var inputText: String
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
@@ -369,8 +382,9 @@ struct ChatConversationView: View {
     // 2.1.6：接管键盘避让——键盘最终高度（弹起时 VStack 底部 padding=该值把输入栏推到键盘顶，收起归零）
     @State private var keyboardHeight: CGFloat = 0
 
-    init(initialText: String = "", onClose: @escaping () -> Void = {}) {
+    init(initialText: String = "", welcomeTitle: String? = nil, onClose: @escaping () -> Void = {}) {
         self.onClose = onClose
+        self.welcomeTitle = welcomeTitle
         _inputText = State(initialValue: "")
         _initialText = State(initialValue: initialText)
         // 带词跳转：发送的内容直接上屏为第一条用户消息（2.0.94）
@@ -394,7 +408,17 @@ struct ChatConversationView: View {
                         .contentShape(Rectangle())
                 }
                 Spacer()
-                Text("新对话").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                if let wt = welcomeTitle {
+                    VStack(spacing: 3) {
+                        Text(wt).font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                        HStack(spacing: 4) {
+                            Circle().fill(Color(red: 0.30, green: 0.85, blue: 0.40)).frame(width: 6, height: 6)
+                            Text("创普AI 在线").font(.system(size: 10)).foregroundColor(Color(red: 0.30, green: 0.85, blue: 0.40))
+                        }
+                    }
+                } else {
+                    Text("新对话").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                }
                 Spacer()
                 Color.clear.frame(width: 44, height: 44)
             }
@@ -405,7 +429,7 @@ struct ChatConversationView: View {
             // 聊天区：空状态纯空白 / 消息气泡；点空白收键盘（2.0.94 问候语全删）
             Group {
                 if messages.isEmpty {
-                    Color.clear
+                    welcomeArea
                 } else {
                     chatHistoryArea
                 }
@@ -434,10 +458,12 @@ struct ChatConversationView: View {
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear {
             currentModel = authManager.getCurrentModel()
-            // 跳转后自动聚焦弹出键盘（与微信点搜索框跳转一致）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { inputFocused = true }
             // 带词跳转：自动补 AI 回复（仅当还没有回复时补，防返回再进重复追加）
             let t = initialText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty {
+                // 2.1.8：仅带词跳转自动聚焦弹键盘；欢迎态（开始养虾）不弹，完整展示欢迎区
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { inputFocused = true }
+            }
             if !t.isEmpty && messages.count == 1 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     messages.append(ChatMessage(text: "收到，我马上帮你处理「\(t)」（演示回复，接入接口后自动替换）", isUser: false))
@@ -463,6 +489,84 @@ struct ChatConversationView: View {
                     withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
+        }
+    }
+
+    // 2.1.8：欢迎区（开始养虾入口空对话时展示；点功能卡片直接发起任务）
+    private var welcomeArea: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                Text("创普在手 天下任我走")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.top, 36)
+                Text("全新一代24小时在线的AI全能私人助理")
+                    .font(.system(size: 13))
+                    .foregroundColor(Constants.textSecondary)
+                    .padding(.top, 10)
+                Text("你好老板，我是你的AI员工")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.white.opacity(0.92))
+                    .padding(.top, 34)
+                Text("有什么吩咐尽管说，一句话我立马帮你干活")
+                    .font(.system(size: 13))
+                    .foregroundColor(Constants.textSecondary)
+                    .padding(.top, 8)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
+                    welcomeCard(icon: "文", name: "帮我写文档", desc: "一键生成", color: Color(red: 0.42, green: 0.30, blue: 1.00))
+                    welcomeCard(icon: "数", name: "数据分析", desc: "智能处理", color: Color(red: 0.24, green: 0.48, blue: 1.00))
+                    welcomeCard(icon: "研", name: "市场调研", desc: "行业分析", color: Color(red: 0.00, green: 0.66, blue: 0.59))
+                    welcomeCard(icon: "同", name: "创建合同", desc: "法律模板", color: Color(red: 0.96, green: 0.47, blue: 0.18))
+                    welcomeCard(icon: "网", name: "创建网站", desc: "快速搭建", color: Color(red: 0.96, green: 0.25, blue: 0.42))
+                    welcomeCard(icon: "旅", name: "旅行规划", desc: "行程安排", color: Color(red: 0.18, green: 0.74, blue: 0.35))
+                }
+                .padding(.top, 30)
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 16)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    // 2.1.8：欢迎区功能卡片（品牌色加深底 + 顶部色条 + 图标单字 + 名称/描述）
+    private func welcomeCard(icon: String, name: String, desc: String, color: Color) -> some View {
+        Button {
+            sendQuickTask(name)
+        } label: {
+            ZStack(alignment: .top) {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(color.opacity(0.55))
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(color)
+                    .frame(height: 3)
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.black.opacity(0.35))
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Text(icon).font(.system(size: 19, weight: .bold)).foregroundColor(.white)
+                        )
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(name).font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                        Text(desc).font(.system(size: 11)).foregroundColor(Color.white.opacity(0.72))
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 18)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    // 2.1.8：欢迎区卡片点击 → 直接发起任务（上屏用户消息 + 模拟 AI 回复）
+    private func sendQuickTask(_ task: String) {
+        guard !task.isEmpty else { return }
+        inputFocused = false
+        messages.append(ChatMessage(text: task, isUser: true))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            messages.append(ChatMessage(text: "收到，我马上帮你处理「\(task)」（演示回复，接入接口后自动替换）", isUser: false))
         }
     }
 
