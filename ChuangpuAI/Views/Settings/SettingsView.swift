@@ -106,7 +106,7 @@ struct SettingsView: View {
                 .padding(.bottom, 30)
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
         .alert("退出登录", isPresented: $showLogoutAlert) {
             Button("取消", role: .cancel) {}
             Button("确定", role: .destructive) { authManager.logout(); dismiss() }

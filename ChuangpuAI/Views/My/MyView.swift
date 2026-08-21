@@ -8,6 +8,8 @@ struct MyView: View {
     @State private var showLogoutAlert = false
     // 2.1.18：宫格"技能市场"切底部 tab 回调（由 MainTabView 传入，默认空）
     var onSwitchTab: (Int) -> Void = { _ in }
+    // 2.1.19：宫格 push 二级页时通知 MainTabView 隐藏/恢复 TabBar（由 MainTabView 传入，默认空）
+    var onPushChanged: (Bool) -> Void = { _ in }
     
     var body: some View {
         ZStack {
