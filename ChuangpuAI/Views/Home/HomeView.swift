@@ -342,10 +342,10 @@ struct HomeView: View {
         VStack(spacing: 8) {
             Text("支持聊天平台接入").font(.system(size: 11)).foregroundColor(Constants.textSecondary)
             HStack(spacing: 8) {
-                Button(action: { openChannelBinding(0) }) { platformIcon(icon: "message.fill", name: "微信", bg: Color(red: 0.03, green: 0.76, blue: 0.38)) }.frame(maxWidth: .infinity)
-                Button(action: { openChannelBinding(1) }) { platformIcon(icon: "building.2.fill", name: "企业微信", bg: Color(red: 0.00, green: 0.51, blue: 0.94)) }.frame(maxWidth: .infinity)
-                Button(action: { openChannelBinding(2) }) { platformIcon(icon: "paperplane.fill", name: "飞书", bg: Color(red: 0.20, green: 0.44, blue: 1.00)) }.frame(maxWidth: .infinity)
-                Button(action: { openChannelBinding(3) }) { platformIcon(icon: "pin.fill", name: "钉钉", bg: Color(red: 0.00, green: 0.54, blue: 1.00)) }.frame(maxWidth: .infinity)
+                Button(action: { openChannelBinding(0) }) { platformIcon(icon: "message.fill", name: "微信", bg: Color(red: 0.03, green: 0.76, blue: 0.38)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
+                Button(action: { openChannelBinding(1) }) { platformIcon(icon: "building.2.fill", name: "企业微信", bg: Color(red: 0.00, green: 0.51, blue: 0.94)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
+                Button(action: { openChannelBinding(2) }) { platformIcon(icon: "paperplane.fill", name: "飞书", bg: Color(red: 0.20, green: 0.44, blue: 1.00)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
+                Button(action: { openChannelBinding(3) }) { platformIcon(icon: "pin.fill", name: "钉钉", bg: Color(red: 0.00, green: 0.54, blue: 1.00)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
             }
         }
     }
