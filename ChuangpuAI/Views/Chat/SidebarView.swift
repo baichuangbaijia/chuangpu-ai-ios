@@ -12,10 +12,13 @@ struct SidebarView: View {
 
     let onSelectConversation: (Conversation) -> Void
     let onClose: () -> Void
+    // 2.1.16：抽屉"渠道"真入口回调（由 MainTabView 打开渠道绑定页）
+    let onOpenChannel: () -> Void
 
-    init(onSelectConversation: @escaping (Conversation) -> Void = { _ in }, onClose: @escaping () -> Void = {}) {
+    init(onSelectConversation: @escaping (Conversation) -> Void = { _ in }, onClose: @escaping () -> Void = {}, onOpenChannel: @escaping () -> Void = {}) {
         self.onSelectConversation = onSelectConversation
         self.onClose = onClose
+        self.onOpenChannel = onOpenChannel
     }
 
     var filteredConversations: [Conversation] {
@@ -80,9 +83,9 @@ struct SidebarView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
 
-            // 渠道（占位：轻提示）
+            // 渠道（2.1.16：真入口 → 打开渠道绑定页；此前为占位 toast）
             Button {
-                showToast("渠道功能开发中")
+                onOpenChannel()
             } label: {
                 HStack(spacing: 12) {
                     Circle()

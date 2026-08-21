@@ -9,8 +9,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "2.1.15"
-    CURRENT_PROJECT_VERSION: "2115"
+    MARKETING_VERSION: "2.1.16"
+    CURRENT_PROJECT_VERSION: "2116"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
