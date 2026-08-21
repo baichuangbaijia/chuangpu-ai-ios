@@ -13,6 +13,9 @@ struct MainTabView: View {
     @State private var hideTabBar = false
     // 2.1.10：3/4 宽左滑抽屉显隐（顶层盖住 TabBar）
     @State private var showDrawer = false
+    // 2.1.16：渠道绑定页显隐（抽屉"渠道"入口打开，顶层盖住抽屉与 TabBar）+ 选中平台（0微信 1企业微信 2飞书 3钉钉）
+    @State private var showChannelBinding = false
+    @State private var channelPlatform = 0
     
     var body: some View {
         ZStack {
@@ -65,12 +68,28 @@ struct MainTabView: View {
                         withAnimation(.easeInOut(duration: 0.25)) { showDrawer = false }
                     }, onClose: {
                         withAnimation(.easeInOut(duration: 0.25)) { showDrawer = false }
+                    }, onOpenChannel: {
+                        // 2.1.16：先收抽屉，再开渠道绑定页（默认微信 tab）
+                        withAnimation(.easeInOut(duration: 0.25)) { showDrawer = false }
+                        channelPlatform = 0
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                            withAnimation(.easeInOut(duration: 0.25)) { showChannelBinding = true }
+                        }
                     })
                     .frame(width: UIScreen.main.bounds.width * 0.75)
                     .transition(.move(edge: .leading))
                 }
                 .transition(.opacity)
                 .zIndex(30)
+            }
+
+            // 2.1.16：渠道绑定页覆盖层（zIndex 40 高于抽屉 30，盖住 TabBar/抽屉/一切）
+            if showChannelBinding {
+                ChannelBindingView(initialPlatform: channelPlatform, onClose: {
+                    withAnimation(.easeInOut(duration: 0.25)) { showChannelBinding = false }
+                })
+                .transition(.move(edge: .trailing))
+                .zIndex(40)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in

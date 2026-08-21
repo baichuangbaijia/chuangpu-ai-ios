@@ -43,9 +43,6 @@ struct HomeView: View {
     @State private var bottomSafe: CGFloat = 0
     // 2.1.6：接管系统键盘避让——键盘最终高度（弹起时 VStack 底部 padding=该值把输入栏推到键盘顶，收起归零；与拉伸/下区显隐同一 withAnimation 单一动画源 → 消灭与系统避让双时钟对撞的收起晃动）
     @State private var keyboardHeight: CGFloat = 0
-    // 2.1.14：渠道绑定页显隐 + 当前选中平台（0微信 1企业微信 2飞书 3钉钉）
-    @State private var showChannelBinding = false
-    @State private var channelPlatform = 0
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -122,15 +119,6 @@ struct HomeView: View {
                 .zIndex(1)
             }
 
-            // 2.1.14：渠道绑定页全屏覆盖（聊天平台接入），关闭恢复 TabBar
-            if showChannelBinding {
-                ChannelBindingView(initialPlatform: channelPlatform, onClose: {
-                    withAnimation(.easeInOut(duration: 0.25)) { showChannelBinding = false }
-                    onChatPresentedChanged?(false)
-                })
-                .transition(.move(edge: .trailing))
-                .zIndex(2)
-            }
         }
         }
     }
@@ -341,11 +329,12 @@ struct HomeView: View {
     private var platformArea: some View {
         VStack(spacing: 8) {
             Text("支持聊天平台接入").font(.system(size: 11)).foregroundColor(Constants.textSecondary)
+            // 2.1.16：纯展示（入口移至抽屉"渠道"，此处不可点击）
             HStack(spacing: 8) {
-                Button(action: { openChannelBinding(0) }) { platformIcon(icon: "message.fill", name: "微信", bg: Color(red: 0.03, green: 0.76, blue: 0.38)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
-                Button(action: { openChannelBinding(1) }) { platformIcon(icon: "building.2.fill", name: "企业微信", bg: Color(red: 0.00, green: 0.51, blue: 0.94)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
-                Button(action: { openChannelBinding(2) }) { platformIcon(icon: "paperplane.fill", name: "飞书", bg: Color(red: 0.20, green: 0.44, blue: 1.00)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
-                Button(action: { openChannelBinding(3) }) { platformIcon(icon: "pin.fill", name: "钉钉", bg: Color(red: 0.00, green: 0.54, blue: 1.00)) }.buttonStyle(PlainButtonStyle()).contentShape(Rectangle()).frame(maxWidth: .infinity)
+                platformIcon(icon: "message.fill", name: "微信", bg: Color(red: 0.03, green: 0.76, blue: 0.38)).frame(maxWidth: .infinity)
+                platformIcon(icon: "building.2.fill", name: "企业微信", bg: Color(red: 0.00, green: 0.51, blue: 0.94)).frame(maxWidth: .infinity)
+                platformIcon(icon: "paperplane.fill", name: "飞书", bg: Color(red: 0.20, green: 0.44, blue: 1.00)).frame(maxWidth: .infinity)
+                platformIcon(icon: "pin.fill", name: "钉钉", bg: Color(red: 0.00, green: 0.54, blue: 1.00)).frame(maxWidth: .infinity)
             }
         }
     }
@@ -358,13 +347,6 @@ struct HomeView: View {
             }
             Text(name).font(.system(size: 10)).foregroundColor(Constants.textSecondary)
         }
-    }
-
-    // 2.1.14：打开渠道绑定页（全屏隐藏 TabBar，关闭恢复）
-    private func openChannelBinding(_ index: Int) {
-        channelPlatform = index
-        withAnimation(.easeInOut(duration: 0.25)) { showChannelBinding = true }
-        onChatPresentedChanged?(true)
     }
 
     private func startAnimations() {
