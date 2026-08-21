@@ -41,7 +41,7 @@ struct MemoryView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
         .alert("删除记忆", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) {

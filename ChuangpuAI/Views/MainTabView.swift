@@ -11,6 +11,8 @@ struct MainTabView: View {
     private let tabBarHeight: CGFloat = 60
     // 2.1.9：对话页全屏时隐藏底部 TabBar（方案A：大厂二级页效果，返回首页恢复）
     @State private var hideTabBar = false
+    // 2.1.19：我的页 NavigationStack 路径（二级页 push 时隐藏 TabBar，返回恢复）
+    @State private var myPath = NavigationPath()
     // 2.1.10：3/4 宽左滑抽屉显隐（顶层盖住 TabBar）
     @State private var showDrawer = false
     // 2.1.16：渠道绑定页显隐（抽屉"渠道"入口打开，顶层盖住抽屉与 TabBar）+ 选中平台（0微信 1企业微信 2飞书 3钉钉）
@@ -31,8 +33,15 @@ struct MainTabView: View {
                 else if selectedTab == 1 { SkillView() }
                 else {
                     // 2.1.18：MyView 包 NavigationStack（宫格 push 页面带返回）+ 传切 tab 回调（技能市场宫格）
-                    NavigationStack {
-                        MyView(onSwitchTab: { index in selectedTab = index })
+                    // 2.1.19：NavigationStack(path:) 绑定 + onChange(path.count) 感知 push 深度 → 二级页全屏隐藏 TabBar（返回首页恢复）
+                    NavigationStack(path: $myPath) {
+                        MyView(onSwitchTab: { index in selectedTab = index },
+                               onPushChanged: { pushing in
+                                   withAnimation(.easeInOut(duration: 0.25)) { hideTabBar = pushing }
+                               })
+                    }
+                    .onChange(of: myPath.count) { count in
+                        withAnimation(.easeInOut(duration: 0.25)) { hideTabBar = count > 0 }
                     }
                 }
             }

@@ -30,7 +30,7 @@ struct TaskView: View {
                 addButton
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
         .sheet(isPresented: $showAddSheet) {
             addTaskSheet
         }
