@@ -9,6 +9,8 @@ struct MainTabView: View {
     @State private var isKeyboardUp = false
     // Tab 栏固定高度（内容区底部留白用）
     private let tabBarHeight: CGFloat = 60
+    // 2.1.9：对话页全屏时隐藏底部 TabBar（方案A：大厂二级页效果，返回首页恢复）
+    @State private var hideTabBar = false
     
     var body: some View {
         ZStack {
@@ -16,33 +18,38 @@ struct MainTabView: View {
             
             // 内容区（2.1.6：忽略键盘安全区——不被系统避让压缩，键盘位移全部由 HomeView 自身 padding 控制）
             ZStack {
-                if selectedTab == 0 { HomeView() }
+                if selectedTab == 0 { HomeView(onChatPresentedChanged: { hidden in
+                    withAnimation(.easeInOut(duration: 0.25)) { hideTabBar = hidden }
+                }) }
                 else if selectedTab == 1 { SkillView() }
                 else { MyView() }
             }
-            .padding(.bottom, isKeyboardUp ? 0 : tabBarHeight) // 键盘弹起时 Tab 栏已被键盘盖住，无需再留 60pt
+            .padding(.bottom, (isKeyboardUp || hideTabBar) ? 0 : tabBarHeight) // 键盘弹起或对话页全屏(TabBar隐藏)时不留白
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea(.keyboard)
             
-            // 底部Tab栏：独立层固定在屏幕底部，键盘弹出时不随输入框弹起
-            HStack(spacing: 0) {
-                tabItem(icon: "house.fill", title: "首页", index: 0)
-                tabItem(icon: "star.fill", title: "技能市场", index: 1)
-                tabItem(icon: "person.fill", title: "我的", index: 2)
+            // 底部Tab栏：独立层固定在屏幕底部，键盘弹出时不随输入框弹起；对话页全屏时隐藏（2.1.9 方案A）
+            if !hideTabBar {
+                HStack(spacing: 0) {
+                    tabItem(icon: "house.fill", title: "首页", index: 0)
+                    tabItem(icon: "star.fill", title: "技能市场", index: 1)
+                    tabItem(icon: "person.fill", title: "我的", index: 2)
+                }
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+                .background(
+                    Constants.bgSecondary
+                        .ignoresSafeArea(edges: .bottom)
+                )
+                .overlay(
+                    Rectangle().fill(Constants.bgTertiary).frame(height: 0.5),
+                    alignment: .top
+                )
+                .frame(maxWidth: .infinity)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .ignoresSafeArea(.keyboard)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .padding(.top, 8)
-            .padding(.bottom, 4)
-            .background(
-                Constants.bgSecondary
-                    .ignoresSafeArea(edges: .bottom)
-            )
-            .overlay(
-                Rectangle().fill(Constants.bgTertiary).frame(height: 0.5),
-                alignment: .top
-            )
-            .frame(maxWidth: .infinity)
-            .frame(maxHeight: .infinity, alignment: .bottom)
-            .ignoresSafeArea(.keyboard)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
             let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
