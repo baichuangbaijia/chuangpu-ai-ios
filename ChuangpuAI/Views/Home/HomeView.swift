@@ -28,6 +28,8 @@ struct HomeView: View {
     @State private var stretchedHeight: CGFloat = 0
     // 2.1.5：安全区顶部高度（GeometryReader 仅读一次系统值，非逐帧测量；键盘通知回调拿不到 geo，故存状态）
     @State private var topSafe: CGFloat = 0
+    // 2.1.11：安全区底部高度（键盘垫高 = keyboardHeight - bottomSafe，输入栏精确贴键盘顶）
+    @State private var bottomSafe: CGFloat = 0
     // 2.1.6：接管系统键盘避让——键盘最终高度（弹起时 VStack 底部 padding=该值把输入栏推到键盘顶，收起归零；与拉伸/下区显隐同一 withAnimation 单一动画源 → 消灭与系统避让双时钟对撞的收起晃动）
     @State private var keyboardHeight: CGFloat = 0
 
@@ -58,11 +60,11 @@ struct HomeView: View {
                 }
             }
             // 2.1.6：接管避让——键盘弹起时底部垫高键盘高度（输入栏贴键盘顶），收起归零；与拉伸/下区显隐同一动画源，全程单调平滑
-            .padding(.bottom, isKeyboardUp ? keyboardHeight : 0)
+            .padding(.bottom, isKeyboardUp ? max(0, keyboardHeight - bottomSafe) : 0)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Constants.bgPrimary.ignoresSafeArea())
             // 2.1.5：安全区顶只读一次存状态（常量），供键盘通知预计算目标高度使用
-            .onAppear { topSafe = geo.safeAreaInsets.top }
+            .onAppear { topSafe = geo.safeAreaInsets.top; bottomSafe = geo.safeAreaInsets.bottom }
             // 2.0.95：首页点空白收键盘（对齐新对话页 2.0.88 做法）
             .contentShape(Rectangle())
             .onTapGesture { if inputFocused { inputFocused = false } }
@@ -395,6 +397,8 @@ struct ChatConversationView: View {
     @FocusState private var inputFocused: Bool
     // 2.1.6：接管键盘避让——键盘最终高度（弹起时 VStack 底部 padding=该值把输入栏推到键盘顶，收起归零）
     @State private var keyboardHeight: CGFloat = 0
+    // 2.1.11：安全区底部高度（键盘垫高 = keyboardHeight - bottomSafe，输入栏精确贴键盘顶）
+    @State private var bottomSafe: CGFloat = 0
 
     init(initialText: String = "", welcomeTitle: String? = nil, onClose: @escaping () -> Void = {}, onOpenDrawer: @escaping () -> Void = {}) {
         self.onClose = onClose
@@ -414,8 +418,8 @@ struct ChatConversationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 2.1.10：顶部导航栏：左=汉堡+绿点在线 / 中=标题(原样) / 右=✕(关页)＋(新页)⋯(下拉)
-            HStack {
+            // 2.1.11：顶部导航栏：左=汉堡+标题(欢迎态=创普AI助手+创普AI在线；普通=新对话) / 右=✕(关页)＋(新页)⋯(下拉)
+            HStack(spacing: 10) {
                 // 左：汉堡（打开抽屉）
                 Button(action: { inputFocused = false; onOpenDrawer() }) {
                     Image(systemName: "line.3.horizontal")
@@ -424,15 +428,9 @@ struct ChatConversationView: View {
                         .frame(width: 40, height: 44)
                         .contentShape(Rectangle())
                 }
-                // 绿点+在线：紧挨汉堡右侧
-                HStack(spacing: 4) {
-                    Circle().fill(Color(red: 0.30, green: 0.85, blue: 0.40)).frame(width: 6, height: 6)
-                    Text("在线").font(.system(size: 10)).foregroundColor(Color(red: 0.30, green: 0.85, blue: 0.40))
-                }
-                Spacer()
-                // 中：标题（欢迎态=标题+创普AI在线原样；普通="新对话"）
+                // 标题移到汉堡右侧（欢迎态=标题+创普AI在线原样；普通="新对话"）
                 if let wt = currentTitle {
-                    VStack(spacing: 3) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(wt).font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                         HStack(spacing: 4) {
                             Circle().fill(Color(red: 0.30, green: 0.85, blue: 0.40)).frame(width: 6, height: 6)
@@ -485,11 +483,12 @@ struct ChatConversationView: View {
             // 输入框（固定单行，不自动拉伸）+ 标签行
             inputBar
                 .padding(.horizontal, 16)
-                .padding(.bottom, 10)
+                .padding(.bottom, keyboardHeight > 0 ? 0 : 10)
         }
         // 2.1.6：接管键盘避让（MainTabView 内容区已全局忽略键盘安全区，对话页输入栏需自己垫高贴键盘顶；与首页同一动画源机制，防输入栏被键盘盖住）
-        .padding(.bottom, keyboardHeight > 0 ? keyboardHeight : 0)
+        .padding(.bottom, keyboardHeight > 0 ? max(0, keyboardHeight - bottomSafe) : 0)
         .background(Constants.bgPrimary.ignoresSafeArea())
+        .background(GeometryReader { g in Color.clear.onAppear { bottomSafe = g.safeAreaInsets.bottom } })
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
             let kbH = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
             let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
@@ -502,7 +501,7 @@ struct ChatConversationView: View {
         // 2.1.10：⋯ 下拉菜单（搜索/日程/文件/邮箱/图片调试=占位；点任意处收回）
         .overlay(alignment: .topTrailing) {
             if showMoreMenu {
-                ZStack {
+                ZStack(alignment: .topTrailing) {
                     Color.black.opacity(0.001)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .ignoresSafeArea()
@@ -519,7 +518,7 @@ struct ChatConversationView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Constants.bgTertiary, lineWidth: 0.5))
                     .shadow(color: Color.black.opacity(0.4), radius: 12, x: 0, y: 4)
                     .padding(.trailing, 8)
-                    .padding(.top, 50)
+                    .padding(.top, 54)
                 }
             }
         }
