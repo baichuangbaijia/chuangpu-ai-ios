@@ -16,11 +16,12 @@ struct HomeView: View {
     @State private var chatTitle: String? = nil
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
-    @State private var showSidebar = false
     @State private var glowPhase: Double = 0.4
     @State private var showChat = false
     // 2.1.9：对话页全屏状态回调（通知 MainTabView 隐藏/恢复底部 TabBar，大厂二级页效果）
     var onChatPresentedChanged: ((Bool) -> Void)? = nil
+    // 2.1.10：汉堡点击回调（通知 MainTabView 打开 3/4 宽左滑抽屉）
+    var onOpenDrawer: (() -> Void)? = nil
     @FocusState private var inputFocused: Bool
     @State private var isKeyboardUp = false
     // 2.1.5：键盘弹起目标拉伸高度（键盘通知到达瞬间一次性预计算，动画期间锁死为常量不再重算 → 收起不晃）
@@ -89,7 +90,6 @@ struct HomeView: View {
                     keyboardHeight = 0
                 }
             }
-            .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
             .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
             .onAppear { currentModel = authManager.getCurrentModel(); inputFocused = false; startAnimations() }
             // 2.1.9：对话页显隐变化 → 通知 MainTabView 隐藏/恢复 TabBar（覆盖全部入口：发送/开始养虾/返回）
@@ -101,7 +101,7 @@ struct HomeView: View {
             if showChat {
                 ChatConversationView(initialText: pendingText, welcomeTitle: chatTitle, onClose: {
                     withAnimation(.easeInOut(duration: 0.25)) { showChat = false }
-                })
+                }, onOpenDrawer: { onOpenDrawer?() })
                 .transition(.move(edge: .trailing))
                 .zIndex(1)
             }
@@ -133,7 +133,7 @@ struct HomeView: View {
     // 导航栏：只留汉堡（对照安卓，无标题无模型标签）
     private var topBar: some View {
         HStack {
-            Button(action: { showSidebar = true }) {
+            Button(action: { inputFocused = false; onOpenDrawer?() }) {
                 Image(systemName: "line.3.horizontal").font(.system(size: 22, weight: .medium)).foregroundColor(.white)
             }
             Spacer()
@@ -379,6 +379,14 @@ struct ChatConversationView: View {
     let onClose: () -> Void
     // 2.1.8：对话页标题（nil=默认"新对话"；非空=显示该标题+在线状态，如"创普AI助手"）
     let welcomeTitle: String?
+    // 2.1.10：当前标题（初始=welcomeTitle；＋新建会话后=nil 显示"新对话"）
+    @State private var currentTitle: String?
+    // 2.1.10：汉堡回调（打开抽屉）
+    let onOpenDrawer: () -> Void
+    // 2.1.10：⋯ 下拉菜单显隐
+    @State private var showMoreMenu = false
+    // 2.1.10：占位提示 toast
+    @State private var toastText: String? = nil
     @State private var inputText: String
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
@@ -388,9 +396,11 @@ struct ChatConversationView: View {
     // 2.1.6：接管键盘避让——键盘最终高度（弹起时 VStack 底部 padding=该值把输入栏推到键盘顶，收起归零）
     @State private var keyboardHeight: CGFloat = 0
 
-    init(initialText: String = "", welcomeTitle: String? = nil, onClose: @escaping () -> Void = {}) {
+    init(initialText: String = "", welcomeTitle: String? = nil, onClose: @escaping () -> Void = {}, onOpenDrawer: @escaping () -> Void = {}) {
         self.onClose = onClose
         self.welcomeTitle = welcomeTitle
+        self.onOpenDrawer = onOpenDrawer
+        _currentTitle = State(initialValue: welcomeTitle)
         _inputText = State(initialValue: "")
         _initialText = State(initialValue: initialText)
         // 带词跳转：发送的内容直接上屏为第一条用户消息（2.0.94）
@@ -404,17 +414,24 @@ struct ChatConversationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部导航栏：返回 + 标题（对标微信对话页）
+            // 2.1.10：顶部导航栏：左=汉堡+绿点在线 / 中=标题(原样) / 右=✕(关页)＋(新页)⋯(下拉)
             HStack {
-                Button(action: { onClose() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .semibold))
+                // 左：汉堡（打开抽屉）
+                Button(action: { inputFocused = false; onOpenDrawer() }) {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 20, weight: .medium))
                         .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 44)
                         .contentShape(Rectangle())
                 }
+                // 绿点+在线：紧挨汉堡右侧
+                HStack(spacing: 4) {
+                    Circle().fill(Color(red: 0.30, green: 0.85, blue: 0.40)).frame(width: 6, height: 6)
+                    Text("在线").font(.system(size: 10)).foregroundColor(Color(red: 0.30, green: 0.85, blue: 0.40))
+                }
                 Spacer()
-                if let wt = welcomeTitle {
+                // 中：标题（欢迎态=标题+创普AI在线原样；普通="新对话"）
+                if let wt = currentTitle {
                     VStack(spacing: 3) {
                         Text(wt).font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                         HStack(spacing: 4) {
@@ -426,7 +443,28 @@ struct ChatConversationView: View {
                     Text("新对话").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                 }
                 Spacer()
-                Color.clear.frame(width: 44, height: 44)
+                // 右：✕ ＋ ⋯
+                Button(action: { onClose() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 44)
+                        .contentShape(Rectangle())
+                }
+                Button(action: { newConversation() }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 44)
+                        .contentShape(Rectangle())
+                }
+                Button(action: { showMoreMenu.toggle() }) {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 44)
+                        .contentShape(Rectangle())
+                }
             }
             .padding(.horizontal, 8)
             .padding(.top, 4)
@@ -460,6 +498,44 @@ struct ChatConversationView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
             let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
             withAnimation(.easeOut(duration: kbDur)) { keyboardHeight = 0 }
+        }
+        // 2.1.10：⋯ 下拉菜单（搜索/日程/文件/邮箱/图片调试=占位；点任意处收回）
+        .overlay(alignment: .topTrailing) {
+            if showMoreMenu {
+                ZStack {
+                    Color.black.opacity(0.001)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea()
+                        .onTapGesture { showMoreMenu = false }
+                    VStack(alignment: .leading, spacing: 0) {
+                        moreMenuItem("搜索", "magnifyingglass")
+                        moreMenuItem("日程", "calendar")
+                        moreMenuItem("文件", "folder")
+                        moreMenuItem("邮箱", "envelope")
+                        moreMenuItem("图片调试", "photo")
+                    }
+                    .background(Constants.bgSecondary)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Constants.bgTertiary, lineWidth: 0.5))
+                    .shadow(color: Color.black.opacity(0.4), radius: 12, x: 0, y: 4)
+                    .padding(.trailing, 8)
+                    .padding(.top, 50)
+                }
+            }
+        }
+        // 2.1.10：占位提示 toast
+        .overlay(alignment: .bottom) {
+            if let t = toastText {
+                Text(t)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(20)
+                    .padding(.bottom, 80)
+                    .transition(.opacity)
+            }
         }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear {
@@ -647,6 +723,43 @@ struct ChatConversationView: View {
             if !msg.isUser { Spacer(minLength: 40) }
         }
         .id(msg.id)
+    }
+
+    // 2.1.10：＋ 添加新页面 = 新开会话（清空消息回欢迎区，标题变"新对话"）；✕ 直接回首页（onClose）
+    private func newConversation() {
+        inputFocused = false
+        messages = []
+        inputText = ""
+        currentTitle = nil
+    }
+
+    // 2.1.10：⋯ 下拉菜单项（占位：轻提示后关闭）
+    private func moreMenuItem(_ title: String, _ icon: String) -> some View {
+        Button {
+            showMoreMenu = false
+            showToast("「\(title)」功能开发中")
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(Constants.textSecondary)
+                    .frame(width: 20)
+                Text(title).font(.system(size: 14)).foregroundColor(.white)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    // 2.1.10：占位 toast
+    private func showToast(_ text: String) {
+        withAnimation { toastText = text }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation { toastText = nil }
+        }
     }
 
     // 发送消息（本地演示版：上屏+模拟AI回复，接真实接口后替换）
