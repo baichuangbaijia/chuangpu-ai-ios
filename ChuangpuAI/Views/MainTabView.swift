@@ -11,6 +11,8 @@ struct MainTabView: View {
     private let tabBarHeight: CGFloat = 60
     // 2.1.9：对话页全屏时隐藏底部 TabBar（方案A：大厂二级页效果，返回首页恢复）
     @State private var hideTabBar = false
+    // 2.1.10：3/4 宽左滑抽屉显隐（顶层盖住 TabBar）
+    @State private var showDrawer = false
     
     var body: some View {
         ZStack {
@@ -20,6 +22,8 @@ struct MainTabView: View {
             ZStack {
                 if selectedTab == 0 { HomeView(onChatPresentedChanged: { hidden in
                     withAnimation(.easeInOut(duration: 0.25)) { hideTabBar = hidden }
+                }, onOpenDrawer: {
+                    withAnimation(.easeInOut(duration: 0.25)) { showDrawer = true }
                 }) }
                 else if selectedTab == 1 { SkillView() }
                 else { MyView() }
@@ -49,6 +53,24 @@ struct MainTabView: View {
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 .ignoresSafeArea(.keyboard)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            // 2.1.10：3/4 宽左滑抽屉（顶层盖住 TabBar；右侧遮罩点击关闭；选历史/渠道占位均收回）
+            if showDrawer {
+                ZStack(alignment: .leading) {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture { withAnimation(.easeInOut(duration: 0.25)) { showDrawer = false } }
+                    SidebarView(onSelectConversation: { _ in
+                        withAnimation(.easeInOut(duration: 0.25)) { showDrawer = false }
+                    }, onClose: {
+                        withAnimation(.easeInOut(duration: 0.25)) { showDrawer = false }
+                    })
+                    .frame(width: UIScreen.main.bounds.width * 0.75)
+                    .transition(.move(edge: .leading))
+                }
+                .transition(.opacity)
+                .zIndex(30)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
