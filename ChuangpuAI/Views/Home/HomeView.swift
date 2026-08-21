@@ -21,6 +21,8 @@ struct HomeView: View {
     @State private var stretchedHeight: CGFloat = 0
     // 2.1.5：安全区顶部高度（GeometryReader 仅读一次系统值，非逐帧测量；键盘通知回调拿不到 geo，故存状态）
     @State private var topSafe: CGFloat = 0
+    // 2.1.6：接管系统键盘避让——键盘最终高度（弹起时 VStack 底部 padding=该值把输入栏推到键盘顶，收起归零；与拉伸/下区显隐同一 withAnimation 单一动画源 → 消灭与系统避让双时钟对撞的收起晃动）
+    @State private var keyboardHeight: CGFloat = 0
 
     // 屏幕自适应参数
     private let hPadding: CGFloat = 16
@@ -48,6 +50,8 @@ struct HomeView: View {
                     homeBottom
                 }
             }
+            // 2.1.6：接管避让——键盘弹起时底部垫高键盘高度（输入栏贴键盘顶），收起归零；与拉伸/下区显隐同一动画源，全程单调平滑
+            .padding(.bottom, isKeyboardUp ? keyboardHeight : 0)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Constants.bgPrimary.ignoresSafeArea())
             // 2.1.5：安全区顶只读一次存状态（常量），供键盘通知预计算目标高度使用
@@ -66,6 +70,7 @@ struct HomeView: View {
                 withAnimation(.easeOut(duration: kbDur)) {
                     isKeyboardUp = true
                     stretchedHeight = target
+                    keyboardHeight = kbH
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
@@ -75,6 +80,7 @@ struct HomeView: View {
                 withAnimation(.easeOut(duration: kbDur)) {
                     isKeyboardUp = false
                     stretchedHeight = 0
+                    keyboardHeight = 0
                 }
             }
             .sheet(isPresented: $showSidebar) { SidebarView(onSelectConversation: { _ in }) }
@@ -195,7 +201,7 @@ struct HomeView: View {
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
         // 2.1.5：键盘弹起时用预计算目标高度（常量，动画期间不再重算）；收起时 isKeyboardUp 布尔翻转 → 从目标值单调平滑回缩到原高；键盘未弹起保持原高
-        .frame(height: inputFocused && isKeyboardUp ? stretchedHeight : nil, alignment: .bottom)
+        .frame(height: inputFocused && isKeyboardUp ? stretchedHeight : 93, alignment: .bottom)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
     }
@@ -356,6 +362,8 @@ struct ChatConversationView: View {
     @State private var messages: [ChatMessage] = []
     @State private var initialText: String = ""
     @FocusState private var inputFocused: Bool
+    // 2.1.6：接管键盘避让——键盘最终高度（弹起时 VStack 底部 padding=该值把输入栏推到键盘顶，收起归零）
+    @State private var keyboardHeight: CGFloat = 0
 
     init(initialText: String = "", onClose: @escaping () -> Void = {}) {
         self.onClose = onClose
@@ -407,7 +415,18 @@ struct ChatConversationView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 10)
         }
+        // 2.1.6：接管键盘避让（MainTabView 内容区已全局忽略键盘安全区，对话页输入栏需自己垫高贴键盘顶；与首页同一动画源机制，防输入栏被键盘盖住）
+        .padding(.bottom, keyboardHeight > 0 ? keyboardHeight : 0)
         .background(Constants.bgPrimary.ignoresSafeArea())
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+            let kbH = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
+            let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+            withAnimation(.easeOut(duration: kbDur)) { keyboardHeight = kbH }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+            let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+            withAnimation(.easeOut(duration: kbDur)) { keyboardHeight = 0 }
+        }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear {
             currentModel = authManager.getCurrentModel()

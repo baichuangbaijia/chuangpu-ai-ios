@@ -14,7 +14,7 @@ struct MainTabView: View {
         ZStack {
             Constants.bgPrimary.ignoresSafeArea()
             
-            // 内容区（正常避让键盘；底部留出 Tab 栏高度）
+            // 内容区（2.1.6：忽略键盘安全区——不被系统避让压缩，键盘位移全部由 HomeView 自身 padding 控制）
             ZStack {
                 if selectedTab == 0 { HomeView() }
                 else if selectedTab == 1 { SkillView() }
@@ -22,6 +22,7 @@ struct MainTabView: View {
             }
             .padding(.bottom, isKeyboardUp ? 0 : tabBarHeight) // 键盘弹起时 Tab 栏已被键盘盖住，无需再留 60pt
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea(.keyboard)
             
             // 底部Tab栏：独立层固定在屏幕底部，键盘弹出时不随输入框弹起
             HStack(spacing: 0) {
@@ -43,11 +44,13 @@ struct MainTabView: View {
             .frame(maxHeight: .infinity, alignment: .bottom)
             .ignoresSafeArea(.keyboard)
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-            isKeyboardUp = true
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+            let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+            withAnimation(.easeOut(duration: kbDur)) { isKeyboardUp = true }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            isKeyboardUp = false
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+            let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+            withAnimation(.easeOut(duration: kbDur)) { isKeyboardUp = false }
         }
     }
     
