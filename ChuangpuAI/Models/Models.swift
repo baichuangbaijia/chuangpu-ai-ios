@@ -110,7 +110,7 @@ struct Skill: Codable, Identifiable {
     let slug: String?
     let version: String?
     let downloads: Int
-    let isInstalled: Bool
+    var isInstalled: Bool
     
     enum CodingKeys: String, CodingKey {
         case name, description, category, slug, version, downloads
