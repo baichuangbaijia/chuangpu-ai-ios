@@ -417,6 +417,8 @@ struct ChatConversationView: View {
     }
 
     var body: some View {
+        // 2.1.12：外包 GeometryReader 读安全区底（background 层安全区=0，2.1.11 键盘垫高多推 34pt 留白；对齐首页 2.1.5 模式）
+        GeometryReader { geo in
         VStack(spacing: 0) {
             // 2.1.11：顶部导航栏：左=汉堡+标题(欢迎态=创普AI助手+创普AI在线；普通=新对话) / 右=✕(关页)＋(新页)⋯(下拉)
             HStack(spacing: 10) {
@@ -488,7 +490,6 @@ struct ChatConversationView: View {
         // 2.1.6：接管键盘避让（MainTabView 内容区已全局忽略键盘安全区，对话页输入栏需自己垫高贴键盘顶；与首页同一动画源机制，防输入栏被键盘盖住）
         .padding(.bottom, keyboardHeight > 0 ? max(0, keyboardHeight - bottomSafe) : 0)
         .background(Constants.bgPrimary.ignoresSafeArea())
-        .background(GeometryReader { g in Color.clear.onAppear { bottomSafe = g.safeAreaInsets.bottom } })
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
             let kbH = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
             let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
@@ -513,6 +514,7 @@ struct ChatConversationView: View {
                         moreMenuItem("邮箱", "envelope")
                         moreMenuItem("图片调试", "photo")
                     }
+                    .fixedSize(horizontal: true, vertical: false)
                     .background(Constants.bgSecondary)
                     .cornerRadius(12)
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Constants.bgTertiary, lineWidth: 0.5))
@@ -538,6 +540,7 @@ struct ChatConversationView: View {
         }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear {
+            bottomSafe = geo.safeAreaInsets.bottom
             currentModel = authManager.getCurrentModel()
             // 带词跳转：自动补 AI 回复（仅当还没有回复时补，防返回再进重复追加）
             let t = initialText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -550,6 +553,7 @@ struct ChatConversationView: View {
                     messages.append(ChatMessage(text: "收到，我马上帮你处理「\(t)」（演示回复，接入接口后自动替换）", isUser: false))
                 }
             }
+        }
         }
     }
 
