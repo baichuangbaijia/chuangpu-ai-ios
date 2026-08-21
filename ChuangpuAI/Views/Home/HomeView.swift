@@ -1,6 +1,17 @@
 import UIKit
 import SwiftUI
 
+// 2.1.13：设备底部安全区（窗口坐标系，非视图相对值）：全面屏=34、无Home键=0
+// 背景：视图 safeAreaInsets 是相对值（视图底边到安全区底边的距离），页面底边恰在安全区底边时恒为 0，
+//       而键盘垫高公式需要的是"VStack 底边到屏幕底的距离"=设备底部安全区 → 改用窗口安全区读取
+private func deviceBottomSafeInset() -> CGFloat {
+    if let window = UIApplication.shared.connectedScenes
+        .compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first {
+        return window.safeAreaInsets.bottom
+    }
+    return 0
+}
+
 struct ChatMessage: Identifiable {
     let id = UUID()
     let text: String
@@ -64,7 +75,7 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Constants.bgPrimary.ignoresSafeArea())
             // 2.1.5：安全区顶只读一次存状态（常量），供键盘通知预计算目标高度使用
-            .onAppear { topSafe = geo.safeAreaInsets.top; bottomSafe = geo.safeAreaInsets.bottom }
+            .onAppear { topSafe = geo.safeAreaInsets.top; bottomSafe = deviceBottomSafeInset() }
             // 2.0.95：首页点空白收键盘（对齐新对话页 2.0.88 做法）
             .contentShape(Rectangle())
             .onTapGesture { if inputFocused { inputFocused = false } }
@@ -417,8 +428,6 @@ struct ChatConversationView: View {
     }
 
     var body: some View {
-        // 2.1.12：外包 GeometryReader 读安全区底（background 层安全区=0，2.1.11 键盘垫高多推 34pt 留白；对齐首页 2.1.5 模式）
-        GeometryReader { geo in
         VStack(spacing: 0) {
             // 2.1.11：顶部导航栏：左=汉堡+标题(欢迎态=创普AI助手+创普AI在线；普通=新对话) / 右=✕(关页)＋(新页)⋯(下拉)
             HStack(spacing: 10) {
@@ -540,7 +549,7 @@ struct ChatConversationView: View {
         }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
         .onAppear {
-            bottomSafe = geo.safeAreaInsets.bottom
+            bottomSafe = deviceBottomSafeInset()
             currentModel = authManager.getCurrentModel()
             // 带词跳转：自动补 AI 回复（仅当还没有回复时补，防返回再进重复追加）
             let t = initialText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -553,7 +562,6 @@ struct ChatConversationView: View {
                     messages.append(ChatMessage(text: "收到，我马上帮你处理「\(t)」（演示回复，接入接口后自动替换）", isUser: false))
                 }
             }
-        }
         }
     }
 
