@@ -167,11 +167,6 @@ struct MyView: View {
         } message: {
             Text("确定要退出登录吗？")
         }
-        .alert("关于我们", isPresented: $showAbout) {
-            Button("确定") {}
-        } message: {
-            Text("创普AI v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.92")\n\n智能对话 · 无限可能\n\n越用越懂你的专属AI助手")
-        }
     }
     
     private func statItem(value: String, label: String) -> some View {
