@@ -1,5 +1,7 @@
 import UIKit
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 
 // 2.1.13：设备底部安全区（窗口坐标系，非视图相对值）：全面屏=34、无Home键=0
 // 背景：视图 safeAreaInsets 是相对值（视图底边到安全区底边的距离），页面底边恰在安全区底边时恒为 0，
@@ -16,6 +18,15 @@ struct ChatMessage: Identifiable {
     let id = UUID()
     let text: String
     let isUser: Bool
+    // 2.1.31：附件（预览后随消息一起发送；一次一个）
+    var attachment: AttachmentItem? = nil
+}
+
+// 2.1.31：附件类型（拍照/相册=图片、文件=URL、视频=临时文件URL）
+enum AttachmentItem {
+    case photo(UIImage)
+    case file(name: String, url: URL)
+    case video(name: String)
 }
 
 struct HomeView: View {
@@ -406,6 +417,14 @@ struct ChatConversationView: View {
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
     @State private var showAttachment = false  // 2.1.30：＋号展开输入栏下方横排四卡片（拍照/相册/文件/视频）
+    // 2.1.31：附件预览（输入框上方，点发送一起发；拍照/视频一次一个）+ 各选择器状态
+    @State private var attachment: AttachmentItem? = nil
+    @State private var showCamera = false
+    @State private var showPhotoPicker = false
+    @State private var showFileImporter = false
+    @State private var showVideoPicker = false
+    @State private var photoItem: PhotosPickerItem? = nil
+    @State private var videoItem: PhotosPickerItem? = nil
     @State private var messages: [ChatMessage] = []
     @State private var initialText: String = ""
     @FocusState private var inputFocused: Bool
@@ -551,6 +570,37 @@ struct ChatConversationView: View {
             }
         }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
+        // 2.1.31：附件选择器（拍照/相册/文件/视频，一次一个，选完先预览）
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { img in
+                attachment = .photo(img)
+                showAttachment = false
+            }
+        }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .photosPicker(isPresented: $showVideoPicker, selection: $videoItem, matching: .videos)
+        .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.item]) { result in
+            if case .success(let url) = result {
+                attachment = .file(name: url.lastPathComponent, url: url)
+                showAttachment = false
+            }
+        }
+        .onChange(of: photoItem) { newItem in
+            guard let newItem else { return }
+            newItem.loadTransferable(type: Data.self) { result in
+                if case .success(let data) = result, let data, let img = UIImage(data: data) {
+                    DispatchQueue.main.async { attachment = .photo(img); showAttachment = false }
+                }
+            }
+        }
+        .onChange(of: videoItem) { newItem in
+            guard let newItem else { return }
+            newItem.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, _ in
+                DispatchQueue.main.async {
+                    if let url { attachment = .video(name: url.lastPathComponent); showAttachment = false }
+                }
+            }
+        }
         .onAppear {
             bottomSafe = deviceBottomSafeInset()
             currentModel = authManager.getCurrentModel()
@@ -669,6 +719,32 @@ struct ChatConversationView: View {
     // 2.1.30：对话页输入框 = 左侧＋(拍照/相册/文件/视频横排卡片) + 输入 + 发送；无定时任务/模型标签（标签只在首页）
     private var inputBar: some View {
         VStack(spacing: 10) {
+            // 2.1.31：附件预览条（选完先预览，点发送一起发；✕ 移除）
+            if let att = attachment {
+                HStack(spacing: 10) {
+                    attachmentPreviewIcon(att)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(attachmentTitle(att))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                        Text("已就绪，点发送一起发送")
+                            .font(.system(size: 10))
+                            .foregroundColor(Constants.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    Button(action: { withAnimation(.easeInOut(duration: 0.2)) { attachment = nil } }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(Constants.textSecondary)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Constants.bgTertiary)
+                .cornerRadius(12)
+                .transition(.opacity)
+            }
             HStack(spacing: 10) {
                 // 左侧 + 号附件按钮 → 展开输入栏下方横排四卡片（拍照/相册/文件/视频，再点收起）
                 Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showAttachment.toggle() } }) {
@@ -696,10 +772,14 @@ struct ChatConversationView: View {
             // 2.1.30：＋号展开 → 横排四卡片，宽度自适应屏幕（四卡片均分）
             if showAttachment {
                 HStack(spacing: 8) {
-                    attachmentCard(icon: "camera", title: "拍照") { showAttachment = false }
-                    attachmentCard(icon: "photo", title: "相册") { showAttachment = false }
-                    attachmentCard(icon: "doc", title: "文件") { showAttachment = false }
-                    attachmentCard(icon: "video", title: "视频") { showAttachment = false }
+                    attachmentCard(icon: "camera", title: "拍照") {
+                        showAttachment = false
+                        if UIImagePickerController.isSourceTypeAvailable(.camera) { showCamera = true }
+                        else { showToast("当前设备不支持相机") }
+                    }
+                    attachmentCard(icon: "photo", title: "相册") { showAttachment = false; showPhotoPicker = true }
+                    attachmentCard(icon: "doc", title: "文件") { showAttachment = false; showFileImporter = true }
+                    attachmentCard(icon: "video", title: "视频") { showAttachment = false; showVideoPicker = true }
                 }
                 .padding(.horizontal, 14)
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -737,16 +817,88 @@ struct ChatConversationView: View {
     private func chatBubble(_ msg: ChatMessage) -> some View {
         HStack {
             if msg.isUser { Spacer(minLength: 40) }
-            Text(msg.text)
-                .font(.system(size: 14))
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(msg.isUser ? Constants.primaryPurple : Constants.bgTertiary)
-                .cornerRadius(14)
+            VStack(alignment: .leading, spacing: 6) {
+                // 2.1.31：附件随消息一起上屏
+                if let att = msg.attachment {
+                    attachmentThumb(att)
+                }
+                if !msg.text.isEmpty {
+                    Text(msg.text)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(msg.isUser ? Constants.primaryPurple : Constants.bgTertiary)
+            .cornerRadius(14)
             if !msg.isUser { Spacer(minLength: 40) }
         }
         .id(msg.id)
+    }
+
+    // 2.1.31：消息气泡内附件缩略
+    private func attachmentThumb(_ att: AttachmentItem) -> some View {
+        Group {
+            switch att {
+            case .photo(let img):
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: 180)
+                    .frame(height: 140)
+                    .cornerRadius(8)
+                    .clipped()
+            case .file(let name, _):
+                HStack(spacing: 6) {
+                    Image(systemName: "doc.fill").font(.system(size: 13)).foregroundColor(.white.opacity(0.9))
+                    Text(name).font(.system(size: 12)).foregroundColor(.white.opacity(0.95)).lineLimit(1)
+                }
+            case .video(let name):
+                HStack(spacing: 6) {
+                    Image(systemName: "video.fill").font(.system(size: 13)).foregroundColor(.white.opacity(0.9))
+                    Text(name).font(.system(size: 12)).foregroundColor(.white.opacity(0.95)).lineLimit(1)
+                }
+            }
+        }
+    }
+
+    // 2.1.31：预览条图标/缩略图
+    private func attachmentPreviewIcon(_ att: AttachmentItem) -> some View {
+        Group {
+            switch att {
+            case .photo(let img):
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 44, height: 44)
+                    .cornerRadius(8)
+                    .clipped()
+            case .file:
+                Image(systemName: "doc.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Constants.primaryPurple)
+                    .frame(width: 44, height: 44)
+                    .background(Constants.bgSecondary)
+                    .cornerRadius(8)
+            case .video:
+                Image(systemName: "video.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Constants.primaryPurple)
+                    .frame(width: 44, height: 44)
+                    .background(Constants.bgSecondary)
+                    .cornerRadius(8)
+            }
+        }
+    }
+
+    // 2.1.31：附件标题
+    private func attachmentTitle(_ att: AttachmentItem) -> String {
+        switch att {
+        case .photo: return "图片"
+        case .file(let name, _): return name
+        case .video(let name): return name
+        }
     }
 
     // 2.1.10：＋ 添加新页面 = 新开会话（清空消息回欢迎区，标题变"新对话"）；✕ 直接回首页（onClose）
@@ -754,6 +906,7 @@ struct ChatConversationView: View {
         inputFocused = false
         messages = []
         inputText = ""
+        attachment = nil
         currentTitle = nil
     }
 
@@ -787,14 +940,48 @@ struct ChatConversationView: View {
     }
 
     // 发送消息（本地演示版：上屏+模拟AI回复，接真实接口后替换）
+    // 2.1.31：支持附件——有附件时文本+附件一起上屏（先预览再发送）
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        messages.append(ChatMessage(text: text, isUser: true))
+        let att = attachment
+        guard !text.isEmpty || att != nil else { return }
+        messages.append(ChatMessage(text: text.isEmpty ? "📎 附件消息" : text, isUser: true, attachment: att))
         inputText = ""
+        attachment = nil
         inputFocused = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            messages.append(ChatMessage(text: "收到，我马上帮你处理「\(text)」（演示回复，接入接口后自动替换）", isUser: false))
+            if att != nil {
+                messages.append(ChatMessage(text: "收到你的附件了，我马上帮你处理（演示回复，接入接口后自动替换）", isUser: false))
+            } else {
+                messages.append(ChatMessage(text: "收到，我马上帮你处理「\(text)」（演示回复，接入接口后自动替换）", isUser: false))
+            }
         }
+    }
+}
+
+// 2.1.31：相机桥接（SwiftUI 无原生相机，用 UIKit 包装）
+struct CameraPicker: UIViewControllerRepresentable {
+    var onCapture: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPicker
+        init(_ parent: CameraPicker) { self.parent = parent }
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let img = info[.originalImage] as? UIImage { parent.onCapture(img) }
+            parent.dismiss()
+        }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.dismiss() }
     }
 }
