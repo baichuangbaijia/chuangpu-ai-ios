@@ -405,6 +405,7 @@ struct ChatConversationView: View {
     @State private var inputText: String
     @State private var currentModel = "deepseek-v4-flash"
     @State private var showModelSelector = false
+    @State private var showAttachment = false  // 2.1.29：＋附件弹窗（拍照/相册/文件/视频）
     @State private var messages: [ChatMessage] = []
     @State private var initialText: String = ""
     @FocusState private var inputFocused: Bool
@@ -550,6 +551,7 @@ struct ChatConversationView: View {
             }
         }
         .sheet(isPresented: $showModelSelector) { ModelSelectorSheet(currentModel: $currentModel) }
+        .sheet(isPresented: $showAttachment) { attachmentSheet }
         .onAppear {
             bottomSafe = deviceBottomSafeInset()
             currentModel = authManager.getCurrentModel()
@@ -665,55 +667,100 @@ struct ChatConversationView: View {
         }
     }
 
-    // 输入框：固定单行（lineLimit 1）不自动拉伸；发送键 + 标签行（定时任务/模型）
+    // 2.1.29：对话页输入框 = 左侧＋(拍照/相册/文件/视频) + 输入 + 发送；无定时任务/模型标签（标签只在首页）
     private var inputBar: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                TextField("分配一个任务或提问任何问题", text: $inputText)
-                    .lineLimit(1)
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-                    .focused($inputFocused)
-                    .submitLabel(.send)
-                    .onSubmit { if inputFocused { sendMessage() } }  // 2.0.95：防失焦误触发发送
-                Button(action: sendMessage) {
-                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
-                }
-                .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
+        HStack(spacing: 10) {
+            // 左侧 + 号附件按钮 → 弹窗：拍照/相册/文件/视频
+            Button(action: { showAttachment = true }) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(Constants.primaryPurple)
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-
-            // 标签行：定时任务 / 选择模型
-            HStack(spacing: 12) {
-                Button(action: {}) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "calendar").font(.system(size: 10))
-                        Text("定时任务").font(.system(size: 11))
-                    }
-                    .foregroundColor(Constants.accentOrange)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Constants.accentOrange.opacity(0.15))
-                    .cornerRadius(12)
-                }
-                Button(action: { showModelSelector = true }) {
-                    HStack(spacing: 4) {
-                        Circle().fill(Constants.accentGreen).frame(width: 5, height: 5)
-                        Text(getModelName(currentModel)).font(.system(size: 11))
-                    }
-                    .foregroundColor(Constants.textSecondary)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Constants.bgSecondary)
-                    .cornerRadius(12)
-                }
-                Spacer()
+            TextField("分配一个任务或提问任何问题", text: $inputText)
+                .lineLimit(1)
+                .font(.system(size: 16))
+                .foregroundColor(.white)
+                .focused($inputFocused)
+                .submitLabel(.send)
+                .onSubmit { if inputFocused { sendMessage() } }  // 2.0.95：防失焦误触发发送
+            Button(action: sendMessage) {
+                Image(systemName: "arrow.up.circle.fill").font(.system(size: 30)).foregroundStyle(Constants.accentOrange)
             }
+            .disabled(inputText.isEmpty).opacity(inputText.isEmpty ? 0.5 : 1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(Constants.bgTertiary)
         .cornerRadius(24)
         .frame(maxWidth: .infinity)
+    }
+
+    // 2.1.29：＋附件弹窗（拍照/相册/文件/视频，顺序按老板要求）
+    private var attachmentSheet: some View {
+        NavigationStack {
+            ZStack {
+                Constants.bgPrimary.ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    attachmentOption(icon: "camera", title: "拍照") {
+                        showAttachment = false
+                    }
+                    
+                    attachmentOption(icon: "photo", title: "相册") {
+                        showAttachment = false
+                    }
+                    
+                    attachmentOption(icon: "doc", title: "文件") {
+                        showAttachment = false
+                    }
+                    
+                    attachmentOption(icon: "video", title: "视频") {
+                        showAttachment = false
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("添加附件")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("取消") {
+                        showAttachment = false
+                    }
+                    .foregroundColor(Constants.primaryPurple)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func attachmentOption(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundColor(Constants.primaryPurple)
+                    .frame(width: 50, height: 50)
+                    .background(Constants.bgTertiary)
+                    .clipShape(Circle())
+                
+                Text(title)
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(Constants.textSecondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Constants.bgSecondary)
+            .cornerRadius(14)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     private func getModelName(_ id: String) -> String {
