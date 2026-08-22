@@ -107,6 +107,7 @@ struct HistoryView: View {
                 .zIndex(10)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             loadConversations()
         }

@@ -60,6 +60,7 @@ struct ChatView: View {
                 inputArea
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showSidebar) {
             SidebarView(onSelectConversation: { conv in
                 dismiss()
