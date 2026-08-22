@@ -101,12 +101,13 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity).frame(height: 50).background(Constants.bgSecondary).cornerRadius(12)
                     }
                     
-                    Text("v2.0.44").font(.system(size: 13)).foregroundColor(Constants.textSecondary).frame(maxWidth: .infinity, alignment: .center).padding(.top, 10)
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1.21")").font(.system(size: 13)).foregroundColor(Constants.textSecondary).frame(maxWidth: .infinity, alignment: .center).padding(.top, 10)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 30)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("退出登录", isPresented: $showLogoutAlert) {
             Button("取消", role: .cancel) {}
             Button("确定", role: .destructive) { authManager.logout(); onClose() }

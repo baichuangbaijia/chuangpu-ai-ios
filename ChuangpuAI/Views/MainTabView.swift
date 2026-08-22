@@ -112,6 +112,7 @@ struct MainTabView: View {
                     case .about: AboutView(onClose: closeMySubPage)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .transition(.move(edge: .trailing))
                 .zIndex(50)
             }

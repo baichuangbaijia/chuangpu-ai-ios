@@ -31,6 +31,7 @@ struct TaskView: View {
                 addButton
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showAddSheet) {
             addTaskSheet
         }
