@@ -11,8 +11,8 @@ struct MainTabView: View {
     private let tabBarHeight: CGFloat = 60
     // 2.1.9：对话页全屏时隐藏底部 TabBar（方案A：大厂二级页效果，返回首页恢复）
     @State private var hideTabBar = false
-    // 2.1.19：我的页 NavigationStack 路径（二级页 push 时隐藏 TabBar，返回恢复）
-    @State private var myPath = NavigationPath()
+    // 2.1.20：我的页二级页覆盖层（方案A：放弃 NavigationStack push，顶层覆盖层全屏显示 → 根治系统导航栏占位顶部留白/半截）
+    @State private var mySubPage: MySubPage? = nil
     // 2.1.10：3/4 宽左滑抽屉显隐（顶层盖住 TabBar）
     @State private var showDrawer = false
     // 2.1.16：渠道绑定页显隐（抽屉"渠道"入口打开，顶层盖住抽屉与 TabBar）+ 选中平台（0微信 1企业微信 2飞书 3钉钉）
@@ -32,17 +32,12 @@ struct MainTabView: View {
                 }) }
                 else if selectedTab == 1 { SkillView() }
                 else {
-                    // 2.1.18：MyView 包 NavigationStack（宫格 push 页面带返回）+ 传切 tab 回调（技能市场宫格）
-                    // 2.1.19：NavigationStack(path:) 绑定 + onChange(path.count) 感知 push 深度 → 二级页全屏隐藏 TabBar（返回首页恢复）
-                    NavigationStack(path: $myPath) {
-                        MyView(onSwitchTab: { index in selectedTab = index },
-                               onPushChanged: { pushing in
-                                   withAnimation(.easeInOut(duration: 0.25)) { hideTabBar = pushing }
-                               })
-                    }
-                    .onChange(of: myPath.count) { count in
-                        withAnimation(.easeInOut(duration: 0.25)) { hideTabBar = count > 0 }
-                    }
+                    // 2.1.18：传切 tab 回调（技能市场宫格）
+                    // 2.1.20：宫格二级页改 onOpenPage 回调上抛 → MainTabView 顶层覆盖层显示（放弃 NavigationStack push，根治顶部留白）
+                    MyView(onSwitchTab: { index in selectedTab = index },
+                           onOpenPage: { page in
+                               withAnimation(.easeInOut(duration: 0.25)) { mySubPage = page }
+                           })
                 }
             }
             .padding(.bottom, (isKeyboardUp || hideTabBar) ? 0 : tabBarHeight) // 键盘弹起或对话页全屏(TabBar隐藏)时不留白
@@ -105,6 +100,21 @@ struct MainTabView: View {
                 .transition(.move(edge: .trailing))
                 .zIndex(40)
             }
+
+            // 2.1.20：我的页二级页覆盖层（方案A：zIndex 50 全屏盖住 TabBar/一切，无系统导航栏参与 → 根治顶部留白/半截；返回按钮 onClose 关闭）
+            if let page = mySubPage {
+                Group {
+                    switch page {
+                    case .history: HistoryView(onClose: closeMySubPage)
+                    case .memory: MemoryView(onClose: closeMySubPage)
+                    case .tasks: TaskView(onClose: closeMySubPage)
+                    case .settings: SettingsView(onClose: closeMySubPage)
+                    case .about: AboutView(onClose: closeMySubPage)
+                    }
+                }
+                .transition(.move(edge: .trailing))
+                .zIndex(50)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
             let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
@@ -114,6 +124,11 @@ struct MainTabView: View {
             let kbDur = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
             withAnimation(.easeOut(duration: kbDur)) { isKeyboardUp = false }
         }
+    }
+    
+    // 2.1.20：关闭我的页二级页覆盖层
+    private func closeMySubPage() {
+        withAnimation(.easeInOut(duration: 0.25)) { mySubPage = nil }
     }
     
     private func tabItem(icon: String, title: String, index: Int) -> some View {
@@ -133,3 +148,8 @@ struct MainTabView: View {
 }
 
 #Preview { MainTabView().environmentObject(AuthManager.shared) }
+
+// 2.1.20：我的页二级页类型（覆盖层模式：MyView 宫格 onOpenPage 回调上抛 → MainTabView 顶层 switch 显示）
+enum MySubPage {
+    case history, memory, tasks, settings, about
+}

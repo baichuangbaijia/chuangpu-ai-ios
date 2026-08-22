@@ -2,7 +2,8 @@ import SwiftUI
 
 /// 任务页面
 struct TaskView: View {
-    @Environment(\.dismiss) private var dismiss
+    // 2.1.20：覆盖层模式（由 MainTabView 传入 onClose，默认空）替代 @Environment(\.dismiss)
+    var onClose: () -> Void = {}
     @State private var tasks: [AgentTask] = []
     @State private var isLoading = false
     @State private var showAddSheet = false
@@ -30,7 +31,6 @@ struct TaskView: View {
                 addButton
             }
         }
-        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
         .sheet(isPresented: $showAddSheet) {
             addTaskSheet
         }
@@ -41,7 +41,7 @@ struct TaskView: View {
     
     private var navBar: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: { onClose() }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)

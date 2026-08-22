@@ -3,13 +3,16 @@ import SwiftUI
 /// 2.1.18：独立对话历史页（我的 → 对话历史）内容对标汉堡抽屉历史聊天记录
 /// 搜索(输入会话主题) + 今天/昨天/5天前分组 + 绿色已完成 + 长按编辑(占位)/删除 + 点条目打开历史对话(ChatView 传 conversation 自动 loadHistory)
 struct HistoryView: View {
-    @Environment(\.dismiss) private var dismiss
+    // 2.1.20：覆盖层模式（由 MainTabView 传入 onClose，默认空）替代 @Environment(\.dismiss)
+    var onClose: () -> Void = {}
     @State private var conversations: [Conversation] = []
     @State private var isLoading = false
     @State private var searchText = ""
     @State private var showDeleteAlert = false
     @State private var conversationToDelete: Conversation?
     @State private var toastText: String? = nil
+    // 2.1.20：点条目选中的历史对话（内嵌 ChatView 覆盖层显示，同 HomeView 对话页模式）
+    @State private var selectedConversation: Conversation? = nil
 
     // 搜索过滤（对标抽屉：按标题过滤）
     private var filteredConversations: [Conversation] {
@@ -49,7 +52,7 @@ struct HistoryView: View {
             VStack(spacing: 0) {
                 // 顶部导航（返回 + 标题"对话历史"）
                 HStack {
-                    Button(action: { dismiss() }) {
+                    Button(action: { onClose() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(.white)
@@ -94,8 +97,16 @@ struct HistoryView: View {
                     .padding(.vertical, 10)
                     .background(Color.black.opacity(0.35))
             }
+
+            // 2.1.20：点条目内嵌显示历史对话（覆盖层全屏，返回 onClose 关闭；同 HomeView 对话页模式）
+            if let conv = selectedConversation {
+                ChatView(conversation: conv, onClose: {
+                    withAnimation(.easeInOut(duration: 0.25)) { selectedConversation = nil }
+                })
+                .transition(.move(edge: .trailing))
+                .zIndex(10)
+            }
         }
-        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
         .onAppear {
             loadConversations()
         }
@@ -156,9 +167,9 @@ struct HistoryView: View {
         }
     }
 
-    // 点条目 → 打开历史对话（ChatView 传 conversation 自动加载该会话历史）
+    // 点条目 → 打开历史对话（2.1.20：改 Button 选中 → 内嵌 ChatView 覆盖层，传 conversation 自动加载该会话历史）
     private func historyRow(_ conv: Conversation) -> some View {
-        NavigationLink(destination: ChatView(conversation: conv)) {
+        Button(action: { selectedConversation = conv }) {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()

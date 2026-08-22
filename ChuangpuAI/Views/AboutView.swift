@@ -3,7 +3,8 @@ import SwiftUI
 /// 2.1.18：关于我们（我的 → 关于我们）
 /// 内容（老板拍板）：标题"关于我们" / 第一行 创普AI + 版本号 / 第二行 智能对话 无限可能 / 第三行 越用越懂你的专属AI助手
 struct AboutView: View {
-    @Environment(\.dismiss) private var dismiss
+    // 2.1.20：覆盖层模式（由 MainTabView 传入 onClose，默认空）替代 @Environment(\.dismiss)
+    var onClose: () -> Void = {}
     
     var body: some View {
         ZStack {
@@ -12,7 +13,7 @@ struct AboutView: View {
             VStack(spacing: 0) {
                 // 顶部导航（返回 + 标题"关于我们"）
                 HStack {
-                    Button(action: { dismiss() }) {
+                    Button(action: { onClose() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(.white)
@@ -65,7 +66,6 @@ struct AboutView: View {
                 Spacer()
             }
         }
-        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
     }
 }
 

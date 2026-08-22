@@ -18,6 +18,8 @@ struct ChatView: View {
     @State private var attachedVideos: [AttachedVideo] = []
     
     let conversation: Conversation?
+    // 2.1.20：覆盖层模式关闭回调（HistoryView 内嵌显示时传入；nil 时兜底 dismiss，兼容旧 push 场景）
+    var onClose: (() -> Void)? = nil
     
     struct AttachedImage: Identifiable {
         let id = UUID()
@@ -58,7 +60,6 @@ struct ChatView: View {
                 inputArea
             }
         }
-        .navigationBarHidden(true)
         .sheet(isPresented: $showSidebar) {
             SidebarView(onSelectConversation: { conv in
                 dismiss()
@@ -83,7 +84,7 @@ struct ChatView: View {
     
     private var chatNavBar: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: { onClose?() ?? dismiss() }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
