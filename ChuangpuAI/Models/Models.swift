@@ -87,6 +87,18 @@ struct Conversation: Codable, Identifiable {
         userId = try c.decodeIfPresent(Int.self, forKey: .userId) ?? 0
         messageCount = try c.decodeIfPresent(Int.self, forKey: .messageCount) ?? 0
     }
+    
+    // 保留成员初始化器（#Preview 等直接构造用；自定义 init(from:) 后编译器不再合成）
+    init(id: Int, title: String, sessionId: String, model: String, updatedAt: String?, createdAt: String?, userId: Int, messageCount: Int) {
+        self.id = id
+        self.title = title
+        self.sessionId = sessionId
+        self.model = model
+        self.updatedAt = updatedAt
+        self.createdAt = createdAt
+        self.userId = userId
+        self.messageCount = messageCount
+    }
 }
 
 // MARK: - 消息
