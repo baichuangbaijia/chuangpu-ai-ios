@@ -306,18 +306,23 @@ struct ChatView: View {
                 Constants.bgPrimary.ignoresSafeArea()
                 
                 VStack(spacing: 20) {
-                    attachmentOption(icon: "photo", title: "图片") {
-                        // TODO: 实现图片选择
+                    attachmentOption(icon: "camera", title: "拍照") {
+                        // TODO: 实现拍照
                         showAttachment = false
                     }
                     
-                    attachmentOption(icon: "video", title: "视频") {
-                        // TODO: 实现视频选择
+                    attachmentOption(icon: "photo", title: "相册") {
+                        // TODO: 实现相册选择
                         showAttachment = false
                     }
                     
                     attachmentOption(icon: "doc", title: "文件") {
                         // TODO: 实现文件选择
+                        showAttachment = false
+                    }
+                    
+                    attachmentOption(icon: "video", title: "视频") {
+                        // TODO: 实现视频选择
                         showAttachment = false
                     }
                     
