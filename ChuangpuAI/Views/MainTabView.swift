@@ -113,7 +113,8 @@ struct MainTabView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .transition(.move(edge: .trailing))
+                // 2.1.25：去掉 .transition(.move) —— 转场容器可能给子视图"理想尺寸提案"，
+                // 导致页面 frame(maxHeight:.infinity) 撑满失效 → 页面缩成内容高度被外层居中（标题在中间的真凶）
                 .zIndex(50)
             }
         }

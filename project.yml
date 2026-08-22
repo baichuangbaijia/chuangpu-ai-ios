@@ -38,8 +38,8 @@ targets:
       path: ChuangpuAI/Info.plist
       properties:
         CFBundleDisplayName: "创普AI"
-        CFBundleShortVersionString: "2.0.75"
-        CFBundleVersion: "75"
+        CFBundleShortVersionString: "2.1.25"
+        CFBundleVersion: "2125"
         UILaunchScreen: {}
         NSCameraUsageDescription: "需要相机权限来拍照上传"
         NSPhotoLibraryUsageDescription: "需要相册权限来选择图片"
