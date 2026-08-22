@@ -56,12 +56,12 @@ struct ListData<T: Codable>: Codable {
 // MARK: - 会话
 struct Conversation: Codable, Identifiable {
     let id: Int
-    let title: String
-    let sessionId: String
-    let model: String
-    let updatedAt: String?
-    let createdAt: String?
-    let userId: Int
+    var title: String
+    var sessionId: String
+    var model: String
+    var updatedAt: String?
+    var createdAt: String?
+    var userId: Int
     var messageCount: Int
     
     enum CodingKeys: String, CodingKey {
@@ -71,6 +71,21 @@ struct Conversation: Codable, Identifiable {
         case createdAt = "created_at"
         case userId = "user_id"
         case messageCount
+    }
+    
+    // 2.1.27：服务器只返回 id/title/session_id/created_at/updated_at，
+    // model/user_id/message_count 缺失会导致整个会话解码失败（历史列表永远为空）。
+    // 这里统一 decodeIfPresent + 默认值容错，缺字段不再抛错。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        sessionId = try c.decodeIfPresent(String.self, forKey: .sessionId) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+        userId = try c.decodeIfPresent(Int.self, forKey: .userId) ?? 0
+        messageCount = try c.decodeIfPresent(Int.self, forKey: .messageCount) ?? 0
     }
 }
 

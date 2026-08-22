@@ -74,7 +74,7 @@ struct ChatView: View {
             sessionId = conversation?.sessionId
             
             if let conv = conversation {
-                loadHistory(sessionId: conv.sessionId)
+                loadHistory(conversationId: conv.id)
             } else {
                 createNewConversation()
             }
@@ -450,10 +450,10 @@ struct ChatView: View {
         }
     }
     
-    private func loadHistory(sessionId: String) {
+    private func loadHistory(conversationId: Int) {
         Task {
             do {
-                let history = try await APIService.shared.getHistory(sessionId: sessionId)
+                let history = try await APIService.shared.getHistory(conversationId: conversationId)
                 await MainActor.run {
                     messages = history
                 }

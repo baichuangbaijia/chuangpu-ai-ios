@@ -85,8 +85,14 @@ class APIService {
     }
     
     func getConversations() async throws -> [Conversation] {
-        let result: ApiListResult<Conversation> = try await request(url: agentBaseURL + "chat/conversations")
-        return result.data?.list ?? []
+        // 2.1.27：服务器实际返回 data 直接是数组（非 {list:[...]}），旧 ApiListResult 解析必失败
+        struct ConversationListResponse: Decodable {
+            let code: Int
+            let data: [Conversation]?
+            let message: String?
+        }
+        let result: ConversationListResponse = try await request(url: agentBaseURL + "chat/conversations")
+        return result.data ?? []
     }
     
     func createConversation() async throws -> Conversation? {
@@ -94,13 +100,15 @@ class APIService {
         return result.data
     }
     
-    func getHistory(sessionId: String) async throws -> [Message] {
+    // 2.1.27：历史消息接口实际路径是 chat/conversations/{id}/messages（按会话数字 id），
+    // 旧路径 chat/history/{session_id} 返回 404
+    func getHistory(conversationId: Int) async throws -> [Message] {
         struct HistoryResponse: Decodable {
             let code: Int
             let data: [HistoryMessage]?
             let message: String?
         }
-        let result: HistoryResponse = try await request(url: agentBaseURL + "chat/history/\(sessionId)")
+        let result: HistoryResponse = try await request(url: agentBaseURL + "chat/conversations/\(conversationId)/messages")
         return result.data?.map { msg in
             Message(role: msg.role ?? "user", content: msg.content ?? "")
         } ?? []
@@ -177,8 +185,9 @@ class APIService {
         return try await request(url: baseURL + "vip/create-container", method: "POST", body: [:], requiresAuth: false)
     }
     
-    func deleteConversation(sessionId: String) async throws -> ApiResult<EmptyResponse> {
-        return try await request(url: agentBaseURL + "chat/conversations/\(sessionId)", method: "DELETE")
+    // 2.1.27：删除接口按会话数字 id（chat/conversations/{id}），传 session_id(UUID) 会 422
+    func deleteConversation(conversationId: Int) async throws -> ApiResult<EmptyResponse> {
+        return try await request(url: agentBaseURL + "chat/conversations/\(conversationId)", method: "DELETE")
     }
 }
 

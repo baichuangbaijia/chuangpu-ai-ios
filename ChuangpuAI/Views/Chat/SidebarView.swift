@@ -293,7 +293,7 @@ struct SidebarView: View {
     private func deleteConversation(_ conv: Conversation) {
         Task {
             do {
-                _ = try await APIService.shared.deleteConversation(sessionId: conv.sessionId)
+                _ = try await APIService.shared.deleteConversation(conversationId: conv.id)
                 await MainActor.run {
                     conversations.removeAll { $0.id == conv.id }
                 }
