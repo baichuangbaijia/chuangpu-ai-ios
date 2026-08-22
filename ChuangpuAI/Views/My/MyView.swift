@@ -8,8 +8,8 @@ struct MyView: View {
     @State private var showLogoutAlert = false
     // 2.1.18：宫格"技能市场"切底部 tab 回调（由 MainTabView 传入，默认空）
     var onSwitchTab: (Int) -> Void = { _ in }
-    // 2.1.19：宫格 push 二级页时通知 MainTabView 隐藏/恢复 TabBar（由 MainTabView 传入，默认空）
-    var onPushChanged: (Bool) -> Void = { _ in }
+    // 2.1.20：宫格二级页回调上抛（由 MainTabView 传入，默认空）→ MainTabView 顶层覆盖层显示对应页面（放弃 NavigationStack push）
+    var onOpenPage: (MySubPage) -> Void = { _ in }
     
     var body: some View {
         ZStack {
@@ -115,15 +115,15 @@ struct MyView: View {
                             .padding(.top, 14)
                             .padding(.bottom, 6)
                             
-                            // 4列自适应宫格（屏幕宽度自适应，第2行3项空1格）2.1.18：7项全部接活（4 push 页面 + 1 切tab + 1 占位 + 1 push）
+                            // 4列自适应宫格（屏幕宽度自适应，第2行3项空1格）2.1.20：7项全为 Button 回调（4 覆盖层页面 + 1 切tab + 1 占位）
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 16) {
-                                gridItem(icon: "clock.arrow.circlepath", title: "对话历史", color: Constants.accentBlue, destination: AnyView(HistoryView()))
-                                gridItem(icon: "brain.head.profile", title: "我的AI记忆", color: Constants.accentGreen, destination: AnyView(MemoryView()))
-                                gridItem(icon: "calendar.badge.clock", title: "定时任务", color: Constants.primaryPurple, destination: AnyView(TaskView()))
+                                gridItem(icon: "clock.arrow.circlepath", title: "对话历史", color: Constants.accentBlue, action: { onOpenPage(.history) })
+                                gridItem(icon: "brain.head.profile", title: "我的AI记忆", color: Constants.accentGreen, action: { onOpenPage(.memory) })
+                                gridItem(icon: "calendar.badge.clock", title: "定时任务", color: Constants.primaryPurple, action: { onOpenPage(.tasks) })
                                 gridItem(icon: "puzzlepiece.extension", title: "技能市场", color: Constants.accentOrange, action: { onSwitchTab(1) })
-                                gridItem(icon: "creditcard.fill", title: "积分明细", color: Constants.accentOrange)
-                                gridItem(icon: "gearshape.fill", title: "设置", color: Constants.textSecondary, destination: AnyView(SettingsView()))
-                                gridItem(icon: "info.circle.fill", title: "关于我们", color: Constants.accentBlue, destination: AnyView(AboutView()))
+                                gridItem(icon: "creditcard.fill", title: "积分明细", color: Constants.accentOrange, action: {})
+                                gridItem(icon: "gearshape.fill", title: "设置", color: Constants.textSecondary, action: { onOpenPage(.settings) })
+                                gridItem(icon: "info.circle.fill", title: "关于我们", color: Constants.accentBlue, action: { onOpenPage(.about) })
                             }
                             .padding(.horizontal, 16)
                             .padding(.bottom, 16)
@@ -183,31 +183,26 @@ struct MyView: View {
         .frame(maxWidth: .infinity)
     }
     
-    // 2.1.18：宫格功能项双模式（图标上 + 名称下，对齐安卓更多功能区）
-    // destination 非空 → NavigationLink push 页面；否则 → Button 回调（action 为空则占位无反应）
-    private func gridItem(icon: String, title: String, color: Color, destination: AnyView? = nil, action: (() -> Void)? = nil) -> some View {
-        let content = VStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(color.opacity(0.15))
-                    .frame(width: 48, height: 48)
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                    .foregroundColor(color)
+    // 2.1.20：宫格功能项（图标上 + 名称下，对齐安卓更多功能区）；2.1.20 起全为 Button 回调（放弃 NavigationLink push）
+    private func gridItem(icon: String, title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundColor(color)
+                }
+                
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity)
-        
-        if let dest = destination {
-            return AnyView(NavigationLink(destination: dest) { content })
-        } else {
-            return AnyView(Button(action: action ?? {}) { content })
+            .frame(maxWidth: .infinity)
         }
     }
 }

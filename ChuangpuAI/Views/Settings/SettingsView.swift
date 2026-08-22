@@ -3,7 +3,8 @@ import SwiftUI
 /// 设置页面 - 对照安卓SettingsActivity
 /// 安卓要素: 返回按钮、昵称修改、密码修改(旧密码+新密码+确认)、消息通知开关、清除缓存、检查更新、用户协议、隐私政策、主题选择(4个)、退出登录
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
+    // 2.1.20：覆盖层模式（由 MainTabView 传入 onClose，默认空）替代 @Environment(\.dismiss)
+    var onClose: () -> Void = {}
     @EnvironmentObject var authManager: AuthManager
     @State private var nickname = ""
     @State private var showEditNickname = false
@@ -22,7 +23,7 @@ struct SettingsView: View {
                 VStack(spacing: 20) {
                     // 顶部导航
                     HStack {
-                        Button(action: { dismiss() }) {
+                        Button(action: { onClose() }) {
                             Image(systemName: "chevron.left").font(.system(size: 20, weight: .medium)).foregroundColor(.white)
                         }
                         Spacer()
@@ -106,10 +107,9 @@ struct SettingsView: View {
                 .padding(.bottom, 30)
             }
         }
-        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
         .alert("退出登录", isPresented: $showLogoutAlert) {
             Button("取消", role: .cancel) {}
-            Button("确定", role: .destructive) { authManager.logout(); dismiss() }
+            Button("确定", role: .destructive) { authManager.logout(); onClose() }
         } message: { Text("确定要退出登录吗？") }
         .sheet(isPresented: $showEditNickname) { EditNicknameSheet(nickname: $nickname) }
         .sheet(isPresented: $showChangePassword) { ChangePasswordSheet() }

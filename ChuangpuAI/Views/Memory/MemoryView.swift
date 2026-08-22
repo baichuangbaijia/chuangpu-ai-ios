@@ -3,7 +3,8 @@ import SwiftUI
 /// 2.1.18：我的AI记忆页（我的 → 我的AI记忆）对齐安卓截图：搜索框"搜索记忆内容" + 幽灵空态"暂无记忆内容" + 列表删除
 /// 方案A：只做 列表+搜索+删除，不做添加/详情/编辑（截图空态：👻 幽灵 emoji + 暂无记忆内容）
 struct MemoryView: View {
-    @Environment(\.dismiss) private var dismiss
+    // 2.1.20：覆盖层模式（由 MainTabView 传入 onClose，默认空）替代 @Environment(\.dismiss)
+    var onClose: () -> Void = {}
     @State private var memories: [Memory] = []
     @State private var isLoading = false
     @State private var searchText = ""
@@ -41,7 +42,6 @@ struct MemoryView: View {
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar) // 2.1.19: iOS16+ 正确隐藏系统导航栏(替换失效的 navigationBarHidden)
         .alert("删除记忆", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) {
@@ -59,7 +59,7 @@ struct MemoryView: View {
     
     private var navBar: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: { onClose() }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
