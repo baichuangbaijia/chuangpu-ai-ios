@@ -79,10 +79,12 @@ struct HistoryView: View {
                     .padding(.bottom, 12)
 
                 if isLoading && conversations.isEmpty {
-                    Spacer()
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Constants.primaryPurple))
-                    Spacer()
+                    // 2.1.22：加载态改 GeometryReader 显式尺寸居中（替代 Spacer 弹性，绕开覆盖层模式下的弹性布局异常）
+                    GeometryReader { geo in
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Constants.primaryPurple))
+                            .frame(width: geo.size.width, height: geo.size.height)
+                    }
                 } else if filteredConversations.isEmpty {
                     emptyState
                 } else {
@@ -137,15 +139,17 @@ struct HistoryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 50))
-                .foregroundColor(Constants.textSecondary)
-            Text(searchText.isEmpty ? "暂无对话记录" : "没有找到匹配的对话")
-                .font(.system(size: 15))
-                .foregroundColor(Constants.textSecondary)
-            Spacer()
+        // 2.1.22：空态改 GeometryReader 显式尺寸居中（替代 Spacer 弹性 → 绕开空态弹性布局在覆盖层模式下的引擎异常，根治内容下移/半截）
+        GeometryReader { geo in
+            VStack(spacing: 16) {
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .font(.system(size: 50))
+                    .foregroundColor(Constants.textSecondary)
+                Text(searchText.isEmpty ? "暂无对话记录" : "没有找到匹配的对话")
+                    .font(.system(size: 15))
+                    .foregroundColor(Constants.textSecondary)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
     }
 

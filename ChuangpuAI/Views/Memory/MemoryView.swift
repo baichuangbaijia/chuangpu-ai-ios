@@ -31,10 +31,12 @@ struct MemoryView: View {
                 searchField
                 
                 if isLoading && memories.isEmpty {
-                    Spacer()
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Constants.primaryPurple))
-                    Spacer()
+                    // 2.1.22：加载态改 GeometryReader 显式尺寸居中（替代 Spacer 弹性）
+                    GeometryReader { geo in
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Constants.primaryPurple))
+                            .frame(width: geo.size.width, height: geo.size.height)
+                    }
                 } else if filteredMemories.isEmpty {
                     emptyState
                 } else {
@@ -99,18 +101,18 @@ struct MemoryView: View {
     }
     
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
-            // 幽灵 emoji（对齐截图空态，彩色 emoji 深色底显示正常）
-            Text("👻")
-                .font(.system(size: 64))
-            
-            Text(searchText.isEmpty ? "暂无记忆内容" : "没有找到匹配的记忆")
-                .font(.system(size: 16))
-                .foregroundColor(Constants.textSecondary)
-            
-            Spacer()
+        // 2.1.22：空态改 GeometryReader 显式尺寸居中（替代 Spacer 弹性 → 绕开空态弹性布局在覆盖层模式下的引擎异常）
+        GeometryReader { geo in
+            VStack(spacing: 16) {
+                // 幽灵 emoji（对齐截图空态，彩色 emoji 深色底显示正常）
+                Text("👻")
+                    .font(.system(size: 64))
+
+                Text(searchText.isEmpty ? "暂无记忆内容" : "没有找到匹配的记忆")
+                    .font(.system(size: 16))
+                    .foregroundColor(Constants.textSecondary)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
     }
     

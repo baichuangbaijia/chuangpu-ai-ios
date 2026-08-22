@@ -27,43 +27,45 @@ struct AboutView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                
-                Spacer()
-                
-                // logo 占位（紫色渐变圆角方块 + 人像，风格同抽屉"我的AI员工"）
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 72, height: 72)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 30))
-                            .foregroundColor(.white)
-                    )
-                    .padding(.bottom, 20)
-                
-                // 第一行：创普AI + 版本号（动态读取 Bundle 版本）
-                HStack(spacing: 8) {
-                    Text("创普AI")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
-                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1.18")")
-                        .font(.system(size: 14))
-                        .foregroundColor(Constants.textSecondary)
+
+                // 2.1.22：内容区改 GeometryReader 显式尺寸居中（替代根 VStack 的 Spacer 弹性 → 绕开覆盖层模式下的弹性布局异常）
+                GeometryReader { geo in
+                    VStack(spacing: 0) {
+                        // logo 占位（紫色渐变圆角方块 + 人像，风格同抽屉"我的AI员工"）
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(LinearGradient(colors: [Constants.primaryPurple, Constants.secondaryPurple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 72, height: 72)
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.white)
+                            )
+                            .padding(.bottom, 20)
+
+                        // 第一行：创普AI + 版本号（动态读取 Bundle 版本）
+                        HStack(spacing: 8) {
+                            Text("创普AI")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(.white)
+                            Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1.18")")
+                                .font(.system(size: 14))
+                                .foregroundColor(Constants.textSecondary)
+                        }
+                        .padding(.bottom, 10)
+
+                        // 第二行：智能对话 无限可能
+                        Text("智能对话 无限可能")
+                            .font(.system(size: 15))
+                            .foregroundColor(Constants.textSecondary)
+                            .padding(.bottom, 8)
+
+                        // 第三行：越用越懂你的专属AI助手
+                        Text("越用越懂你的专属AI助手")
+                            .font(.system(size: 13))
+                            .foregroundColor(Constants.textSecondary.opacity(0.7))
+                    }
+                    .frame(width: geo.size.width, height: geo.size.height)
                 }
-                .padding(.bottom, 10)
-                
-                // 第二行：智能对话 无限可能
-                Text("智能对话 无限可能")
-                    .font(.system(size: 15))
-                    .foregroundColor(Constants.textSecondary)
-                    .padding(.bottom, 8)
-                
-                // 第三行：越用越懂你的专属AI助手
-                Text("越用越懂你的专属AI助手")
-                    .font(.system(size: 13))
-                    .foregroundColor(Constants.textSecondary.opacity(0.7))
-                
-                Spacer()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
