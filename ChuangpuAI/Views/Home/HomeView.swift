@@ -585,22 +585,22 @@ struct ChatConversationView: View {
                 showAttachment = false
             }
         }
-        .onChange(of: photoItem) { newItem in
+        .onChange(of: photoItem, perform: { newItem in
             guard let newItem else { return }
             newItem.loadTransferable(type: Data.self) { result in
                 if case .success(let data) = result, let data, let img = UIImage(data: data) {
                     DispatchQueue.main.async { attachment = .photo(img); showAttachment = false }
                 }
             }
-        }
-        .onChange(of: videoItem) { newItem in
+        })
+        .onChange(of: videoItem, perform: { newItem in
             guard let newItem else { return }
             newItem.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, _ in
                 DispatchQueue.main.async {
                     if let url { attachment = .video(name: url.lastPathComponent); showAttachment = false }
                 }
             }
-        }
+        })
         .onAppear {
             bottomSafe = deviceBottomSafeInset()
             currentModel = authManager.getCurrentModel()
