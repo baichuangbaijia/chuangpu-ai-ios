@@ -6,7 +6,7 @@ struct AboutView: View {
     var onClose: () -> Void = {}
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             Constants.bgPrimary.ignoresSafeArea()
 
             VStack(spacing: 0) {
