@@ -595,9 +595,9 @@ struct ChatConversationView: View {
         })
         .onChange(of: videoItem, perform: { newItem in
             guard let newItem else { return }
-            newItem.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, _ in
-                DispatchQueue.main.async {
-                    if let url { attachment = .video(name: url.lastPathComponent); showAttachment = false }
+            newItem.loadTransferable(type: URL.self) { result in
+                if case .success(let url) = result, let url {
+                    DispatchQueue.main.async { attachment = .video(name: url.lastPathComponent); showAttachment = false }
                 }
             }
         })
